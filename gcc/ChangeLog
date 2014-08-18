@@ -1,6 +1,13 @@
 2017-12-20  Vidir Alexander Jonsson <valex@valex.is>
 
 	Backport from mainline
+	2014-08-18  David Malcolm  <dmalcolm@redhat.com>
+
+	* is-a.h (template<T, U> safe_as_a <U *p>) New function.
+
+2017-12-20  Vidir Alexander Jonsson <valex@valex.is>
+
+	Backport from mainline
 	2014-06-30  Uros Bizjak  <ubizjak@gmail.com>
 
 	* except.c (emit_note_eh_region_end): New helper function.
