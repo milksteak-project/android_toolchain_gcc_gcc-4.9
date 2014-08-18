@@ -5613,6 +5613,21 @@
 	instructions "vpmuludq" and "vpaddq" instead of "vpmacsdql" for
 	handling 32-bit multiplication.
 
+2014-08-18  David Malcolm  <dmalcolm@redhat.com>
+
+	* coretypes.h (class rtx_insn): Add forward declaration.
+
+	* rtl.h: Include is-a.h.
+	(struct rtx_def): Add dummy "desc" and "tag" GTY options as a
+	workaround to ensure gengtype knows inheritance is occurring,
+	whilst continuing to use the pre-existing special-casing for
+	rtx_def.
+	(class rtx_insn): New subclass of rtx_def, adding the
+	invariant that we're dealing with something we can sanely use
+	INSN_UID, NEXT_INSN, PREV_INSN on.
+	(is_a_helper <rtx_insn *>::test): New.
+	(is_a_helper <const rtx_insn *>::test): New.
+
 2014-08-08  Guozhi Wei  <carrot@google.com>
 
 	* config/rs6000/rs6000.md (*movdi_internal64): Add a new constraint.
