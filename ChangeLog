@@ -1,3 +1,10 @@
+2017-12-20  Vidir Alexander Jonsson <valex@valex.is>
+
+	Backport from mainline
+	2014-08-18  David Malcolm  <dmalcolm@redhat.com>
+
+	* rtx-classes-status.txt: New file
+
 2016-08-03  Release Manager
 
 	* GCC 4.9.4 released.
