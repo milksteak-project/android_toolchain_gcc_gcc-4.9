@@ -4864,7 +4864,7 @@ expand_gimple_basic_block (basic_block bb, bool disable_tail_calls)
   gimple_stmt_iterator gsi;
   gimple_seq stmts;
   gimple stmt = NULL;
-  rtx note;
+  rtx_note *note;
   rtx_insn *last;
   edge e;
   edge_iterator ei;
@@ -4937,7 +4937,7 @@ expand_gimple_basic_block (basic_block bb, bool disable_tail_calls)
       maybe_dump_rtl_for_gimple_stmt (stmt, last);
     }
   else
-    note = SET_BB_HEAD (bb) = emit_note (NOTE_INSN_BASIC_BLOCK);
+    SET_BB_HEAD (bb) = note = emit_note (NOTE_INSN_BASIC_BLOCK);
 
   NOTE_BASIC_BLOCK (note) = bb;
 
