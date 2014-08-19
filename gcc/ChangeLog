@@ -5389,6 +5389,16 @@
 
 2014-08-19  David Malcolm  <dmalcolm@redhat.com>
 
+	* rtl.h (next_cc0_user): Strengthen return type from rtx to
+	rtx_insn *.
+	(prev_cc0_setter): Likewise.
+
+	* emit-rtl.c (next_cc0_user): Strengthen return type from rtx to
+	rtx_insn *, adding checked casts for now as necessary.
+	(prev_cc0_setter): Likewise.
+
+2014-08-19  David Malcolm  <dmalcolm@redhat.com>
+
 	* emit-rtl.h (emit_copy_of_insn_after): Strengthen return type
 	from rtx to rtx_insn *.
 
