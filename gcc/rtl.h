@@ -2144,7 +2144,7 @@ extern rtx emit_debug_insn (rtx);
 extern rtx emit_jump_insn (rtx);
 extern rtx emit_call_insn (rtx);
 extern rtx emit_label (rtx);
-extern rtx emit_jump_table_data (rtx);
+extern rtx_jump_table_data *emit_jump_table_data (rtx);
 extern rtx emit_barrier (void);
 extern rtx emit_note (enum insn_note);
 extern rtx emit_note_copy (rtx);
