@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 2016-08-03  Release Manager
+=======
+2014-08-19  David Malcolm  <dmalcolm@redhat.com>
+
+	* rtx-classes-status.txt: Add SET_NEXT_INSN, SET_PREV_INSN.
+
+2014-08-18  Patrick Palka  <ppalka@gcc.gnu.org>
+>>>>>>> 4a57a2e... Split NEXT_INSN/PREV_INSN into lvalue and rvalue forms
 
 	* GCC 4.9.4 released.
 
@@ -36,6 +44,10 @@
 2014-10-30  Release Manager
 
 	* GCC 4.9.2 released.
+
+2014-08-19  David Malcolm  <dmalcolm@redhat.com>
+
+	* rtx-classes-status.txt: Add SET_NEXT_INSN, SET_PREV_INSN.
 
 2014-08-18  David Malcolm  <dmalcolm@redhat.com>
 
