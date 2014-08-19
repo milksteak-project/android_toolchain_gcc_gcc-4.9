@@ -1101,7 +1101,8 @@ try_redirect_by_replacing_jump (edge e, basic_block target, bool in_cfglayout)
   else
     {
       rtx target_label = block_label (target);
-      rtx barrier, label, table;
+      rtx barrier, label;
+      rtx_jump_table_data *table;
 
       emit_jump_insn_after_noloc (gen_jump (target_label), insn);
       JUMP_LABEL (BB_END (src)) = target_label;
@@ -1174,9 +1175,10 @@ try_redirect_by_replacing_jump (edge e, basic_block target, bool in_cfglayout)
 static bool
 patch_jump_insn (rtx insn, rtx old_label, basic_block new_bb)
 {
+  rtx_jump_table_data *table;
   rtx tmp;
   /* Recognize a tablejump and adjust all matching cases.  */
-  if (tablejump_p (insn, NULL, &tmp))
+  if (tablejump_p (insn, NULL, &table))
     {
       rtvec vec;
       int j;
@@ -1184,10 +1186,10 @@ patch_jump_insn (rtx insn, rtx old_label, basic_block new_bb)
 
       if (new_bb == EXIT_BLOCK_PTR_FOR_FN (cfun))
 	return false;
-      if (GET_CODE (PATTERN (tmp)) == ADDR_VEC)
-	vec = XVEC (PATTERN (tmp), 0);
+      if (GET_CODE (PATTERN (table)) == ADDR_VEC)
+	vec = XVEC (PATTERN (table), 0);
       else
-	vec = XVEC (PATTERN (tmp), 1);
+	vec = XVEC (PATTERN (table), 1);
 
       for (j = GET_NUM_ELEM (vec) - 1; j >= 0; --j)
 	if (XEXP (RTVEC_ELT (vec, j), 0) == old_label)
@@ -1630,7 +1632,10 @@ force_nonfallthru_and_redirect (edge e, basic_block target, rtx jump_label)
       /* If the old block ended with a tablejump, skip its table
 	 by searching forward from there.  Otherwise start searching
 	 forward from the last instruction of the old block.  */
-      if (!tablejump_p (BB_END (e->src), NULL, &note))
+      rtx_jump_table_data *table;
+      if (tablejump_p (BB_END (e->src), NULL, &table))
+	note = table;
+      else
 	note = BB_END (e->src);
       note = NEXT_INSN (note);
 
@@ -2273,12 +2278,13 @@ update_br_prob_note (basic_block bb)
 rtx
 get_last_bb_insn (basic_block bb)
 {
+  rtx_jump_table_data *table;
   rtx tmp;
   rtx end = BB_END (bb);
 
   /* Include any jump table following the basic block.  */
-  if (tablejump_p (end, NULL, &tmp))
-    end = tmp;
+  if (tablejump_p (end, NULL, &table))
+    end = table;
 
   /* Include any barriers that may follow the basic block.  */
   tmp = next_nonnote_insn_bb (end);
