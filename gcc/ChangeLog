@@ -3,6 +3,12 @@
 	Backport from mainline
 	2014-08-19  David Malcolm  <dmalcolm@redhat.com>
 
+	* emit-rtl.h (get_insns): Strengthen return type from rtx to
+	rtx_insn *, adding a checked cast for now.
+	(get_last_insn): Likewise.
+
+	2014-08-19  David Malcolm  <dmalcolm@redhat.com>
+
 	* rtl.h (gen_label_rtx): Strengthen return type from rtx to
 	rtx_code_label *.
 
