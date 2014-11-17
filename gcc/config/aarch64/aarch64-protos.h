@@ -374,4 +374,5 @@ extern void aarch64_final_prescan_insn (rtx);
 extern bool
 aarch64_expand_vec_perm_const (rtx target, rtx op0, rtx op1, rtx sel);
 void aarch64_atomic_assign_expand_fenv (tree *, tree *, tree *);
+int aarch64_ccmp_mode_to_code (enum machine_mode mode);
 #endif /* GCC_AARCH64_PROTOS_H */
