@@ -4126,6 +4126,11 @@
 	(gimple_equal_p): Don't use vn_valueize to compare for lhs equality of
 	assigns.
 
+2014-11-17  Zhenqiang Chen  <zhenqiang.chen@linaro.org>
+
+	* config/aarch64/constraints.md (Usn, aarch64_ccmp_immediate,
+	aarch64_ccmp_operand): New constraints.
+
 2014-11-16  Eric Botcazou  <ebotcazou@adacore.com>
 
 	* doc/tm.texi.in (TARGET_FLAGS_REGNUM): Move around.
