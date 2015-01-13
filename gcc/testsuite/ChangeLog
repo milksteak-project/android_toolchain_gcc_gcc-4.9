@@ -2185,6 +2185,11 @@
 	PR middle-end/64391
 	* gcc.dg/tm/pr64391.c: New test.
 
+2015-01-13  Andrew Pinski  <apinski@cavium.com>
+
+	* gcc.target/aarch64/volatileloadpair-1.c: New testcase.
+	* gcc.target/aarch64/volatileloadpair-2.c: New testcase.
+
 2015-01-13  Marc Glisse  <marc.glisse@inria.fr>
 
 	PR c++/54442

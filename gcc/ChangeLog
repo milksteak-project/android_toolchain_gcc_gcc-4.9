@@ -3342,6 +3342,12 @@
 	PR middle-end/64391
 	* trans-mem.c (get_attrs_for): Return NULL_TREE if X is NULL_TREE.
 
+2015-01-13  Andrew Pinski   <apinski@cavium.com>
+
+	* config/aarch64/aarch64.c (aarch64_operands_ok_for_ldpstp): Reject
+	volatile mems.
+	(aarch64_operands_adjust_ok_for_ldpstp): Likewise.
+
 2015-01-13  Marc Glisse  <marc.glisse@inria.fr>
 
 	PR c++/54442
