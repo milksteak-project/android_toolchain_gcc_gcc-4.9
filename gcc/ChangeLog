@@ -3344,6 +3344,11 @@
 
 2015-01-13  Andrew Pinski   <apinski@cavium.com>
 
+	* config/aarch64/aarch64.c (fusion_load_store): Check dest mode
+	instead of src mode.	
+
+2015-01-13  Andrew Pinski   <apinski@cavium.com>
+
 	* config/aarch64/aarch64.c (aarch64_operands_ok_for_ldpstp): Reject
 	volatile mems.
 	(aarch64_operands_adjust_ok_for_ldpstp): Likewise.

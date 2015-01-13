@@ -2187,6 +2187,10 @@
 
 2015-01-13  Andrew Pinski  <apinski@cavium.com>
 
+	* gcc.target/aarch64/store-pair-1.c: New testcase.
+
+2015-01-13  Andrew Pinski  <apinski@cavium.com>
+
 	* gcc.target/aarch64/volatileloadpair-1.c: New testcase.
 	* gcc.target/aarch64/volatileloadpair-2.c: New testcase.
 
