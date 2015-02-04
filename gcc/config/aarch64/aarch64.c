@@ -9665,9 +9665,7 @@ aarch64_evpc_ext (struct expand_vec_perm_d *d)
       /* After setup, we want the high elements of the first vector (stored
          at the LSB end of the register), and the low elements of the second
          vector (stored at the MSB end of the register). So swap.  */
-      rtx temp = d->op0;
-      d->op0 = d->op1;
-      d->op1 = temp;
+      std::swap (d->op0, d->op1);
       /* location != 0 (above), so safe to assume (nelt - location) < nelt.  */
       location = nelt - location;
     }
@@ -9838,14 +9836,11 @@ aarch64_expand_vec_perm_const_1 (struct expand_vec_perm_d *d)
   if (d->perm[0] >= d->nelt)
     {
       unsigned i, nelt = d->nelt;
-      rtx x;
 
       for (i = 0; i < nelt; ++i)
 	d->perm[i] = (d->perm[i] + nelt) & (2 * nelt - 1);
 
-      x = d->op0;
-      d->op0 = d->op1;
-      d->op1 = x;
+      std::swap (d->op0, d->op1);
     }
 
   if (TARGET_SIMD)
