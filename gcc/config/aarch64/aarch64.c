@@ -460,9 +460,6 @@ static const struct aarch64_option_extension all_extensions[] =
    increment address.  */
 static enum machine_mode aarch64_memory_reference_mode;
 
-/* Used to force GTY into this file.  */
-static GTY(()) int gty_dummy;
-
 /* A table of valid AArch64 "bitmask immediate" values for
    logical instructions.  */
 
