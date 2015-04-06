@@ -2352,6 +2352,15 @@
 	* tree-vect-data-refs.c (vect_peeling_hash_get_lowest_cost):
 	Likewise.
 
+2015-04-06  Evandro Menezes  <e.menezes@samsung.com>
+
+	* doc/invoke.texi (ARM/mtune): Add "exynos-m1" as an option.
+	* config/arm/arm.c (arm_issue_rate): Specify "3" for "exynosm1".
+	* config/arm/arm-cores.def (exynos-m1): New core.
+	* config/arm/arm-tune.md: Regenerate.
+	* config/arm/arm-tables.opt: Add entry for "exynos-m1".
+	* config/arm/bpabi.h: Likewise.
+
 2015-04-05  Yvan Roux  <yvan.roux@linaro.org>
 
 	Backport from trunk r221867
