@@ -2326,6 +2326,12 @@
 	* config/rs6000/rs6000.opt (mefficient-unaligned-vector): New
 	undocumented option.
 
+2015-04-20  Alan Lawrence  <alan.lawrence@arm.com>
+
+	PR target/64134
+	* config/aarch64/aarch64.c (aarch64_expand_vector_init): Load constant
+	and overwrite variable parts if <= 1/2 the elements are variable.
+
 2015-04-18  Bill Schmidt  <wschmidt@linux.vnet.ibm.com>
 	    Jakub Jelinek  <jakub@redhat.com>
 

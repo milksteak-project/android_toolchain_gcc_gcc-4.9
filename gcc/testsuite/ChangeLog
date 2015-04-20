@@ -1438,6 +1438,11 @@
 	* gcc.dg/vect/costmodel/ppc/costmodel-bb-slp-9a.c: Replace
 	vect_no_align with vect_no_align && { ! vect_hw_misalign }.
 
+2015-04-20  Alan Lawrence  <alan.lawrence@arm.com>
+
+	PR target/64134
+	* gcc.target/aarch64/vec_init_1.c: New test.
+
 2015-04-18  Bill Schmidt  <wschmidt@linux.vnet.ibm.com>
 
 	Backport from mainline r222205
