@@ -2199,6 +2199,12 @@
 	(RS6000_BTC_CR): New macro.
 	* doc/extend.texi: Update documentation for htm builtins.
 
+2015-04-30  Kyrylo Tkachov  <kyrylo.tkachov@arm.com>
+
+	* config/aarch64/aarch64.c (aarch64_rtx_costs): Use extend_arith
+	rather than arith_shift cost when costing ADD/MINUS of an
+	extended value.
+
 2015-04-28  Tejas Belagod  <tejas.belagod@arm.com>
 
 	Backport from Mainline
