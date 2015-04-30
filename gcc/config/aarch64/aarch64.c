@@ -5003,6 +5003,15 @@ aarch64_rtx_mult_cost (rtx x, int code, int outer, bool speed)
 	  return cost;
 	}
 
+      /* MNEG or [US]MNEGL.  Extract the NEG operand and indicate that it's a
+	 compound and let the below cases handle it.  After all, MNEG is a
+	 special-case alias of MSUB.  */
+      if (GET_CODE (op0) == NEG)
+	{
+	  op0 = XEXP (op0, 0);
+	  compound_p = true;
+	}
+
       /* Integer multiplies or FMAs have zero/sign extending variants.  */
       if ((GET_CODE (op0) == ZERO_EXTEND
 	   && GET_CODE (op1) == ZERO_EXTEND)
@@ -5015,7 +5024,7 @@ aarch64_rtx_mult_cost (rtx x, int code, int outer, bool speed)
 	  if (speed)
 	    {
 	      if (compound_p)
-		/* MADD/SMADDL/UMADDL.  */
+		/* SMADDL/UMADDL/UMSUBL/SMSUBL.  */
 		cost += extra_cost->mult[0].extend_add;
 	      else
 		/* MUL/SMULL/UMULL.  */
@@ -5025,7 +5034,7 @@ aarch64_rtx_mult_cost (rtx x, int code, int outer, bool speed)
 	  return cost;
 	}
 
-      /* This is either an integer multiply or an FMA.  In both cases
+      /* This is either an integer multiply or a MADD.  In both cases
 	 we want to recurse and cost the operands.  */
       cost += rtx_cost (op0, MULT, 0, speed)
 	      + rtx_cost (op1, MULT, 1, speed);
@@ -5033,7 +5042,7 @@ aarch64_rtx_mult_cost (rtx x, int code, int outer, bool speed)
       if (speed)
 	{
 	  if (compound_p)
-	    /* MADD.  */
+	    /* MADD/MSUB.  */
 	    cost += extra_cost->mult[mode == DImode].add;
 	  else
 	    /* MUL.  */
