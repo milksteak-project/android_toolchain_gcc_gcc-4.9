@@ -2398,6 +2398,12 @@
 	(thunderx_tunings): Likewise.
 	(xgene1_tunings): Likewise.
 
+2015-04-30  Kyrylo Tkachov  <kyrylo.tkachov@arm.com>
+
+	* config/aarch64/aarch64.c (aarch64_rtx_costs): Use extend_arith
+	rather than arith_shift cost when costing ADD/MINUS of an
+	extended value.
+
 2015-04-28  Thomas Preud'homme  <thomas.preudhomme@arm.com>
 
 	PR target/63503
