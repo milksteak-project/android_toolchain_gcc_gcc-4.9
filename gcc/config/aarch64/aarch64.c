@@ -5654,6 +5654,8 @@ aarch64_rtx_costs (rtx x, int code, int outer ATTRIBUTE_UNUSED,
 	op1 = XEXP (x, 1);
 
 cost_minus:
+	*cost += rtx_cost (op0, MINUS, 0, speed);
+
 	/* Detect valid immediates.  */
 	if ((GET_MODE_CLASS (mode) == MODE_INT
 	     || (GET_MODE_CLASS (mode) == MODE_CC
@@ -5661,13 +5663,10 @@ cost_minus:
 	    && CONST_INT_P (op1)
 	    && aarch64_uimm12_shift (INTVAL (op1)))
 	  {
-	    *cost += rtx_cost (op0, MINUS, 0, speed);
-
 	    if (speed)
 	      /* SUB(S) (immediate).  */
 	      *cost += extra_cost->alu.arith;
 	    return true;
-
 	  }
 
 	/* Look for SUB (extended register).  */
@@ -5692,7 +5691,6 @@ cost_minus:
 	    *cost += aarch64_rtx_mult_cost (new_op1, MULT,
 					    (enum rtx_code) code,
 					    speed);
-	    *cost += rtx_cost (op0, MINUS, 0, speed);
 	    return true;
 	  }
 
@@ -5739,6 +5737,8 @@ cost_plus:
 	    return true;
 	  }
 
+	*cost += rtx_cost (op1, PLUS, 1, speed);
+
 	/* Look for ADD (extended register).  */
         if (aarch64_rtx_arith_op_extract_p (op0, mode))
 	  {
@@ -5760,12 +5760,10 @@ cost_plus:
 	  {
 	    *cost += aarch64_rtx_mult_cost (new_op0, MULT, PLUS,
 					    speed);
-	    *cost += rtx_cost (op1, PLUS, 1, speed);
 	    return true;
 	  }
 
-	*cost += (rtx_cost (new_op0, PLUS, 0, speed)
-		  + rtx_cost (op1, PLUS, 1, speed));
+	*cost += rtx_cost (new_op0, PLUS, 0, speed);
 
 	if (speed)
 	  {
