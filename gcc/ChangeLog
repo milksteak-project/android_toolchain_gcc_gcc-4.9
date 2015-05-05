@@ -2108,6 +2108,20 @@
 	* config/i386/i386.c (ix86_parse_stringop_strategy_string): Error out
 	if rep_8byte stringop strategy was specified for 32-bit target.
 
+2015-05-05  Matthew Wahab  <matthew.wahab@arm.com>
+
+	* gcc/config/aarch64-protos.h (struct cpu_branch_cost): New.
+        (tune_params): Add field branch_costs.
+	(aarch64_branch_cost): Declare.
+	* gcc/config/aarch64.c (generic_branch_cost): New.
+	(generic_tunings): Set field cpu_branch_cost to generic_branch_cost.
+	(cortexa53_tunings): Likewise.
+	(cortexa57_tunings): Likewise.
+	(thunderx_tunings): Likewise.
+	(xgene1_tunings): Likewise.
+	(aarch64_branch_cost): Define.
+	* gcc/config/aarch64/aarch64.h (BRANCH_COST): Redefine.
+
 2015-05-05  Jack Howarth  <howarth.at.gcc@gmail.com>
 
 	Backport from mainline
