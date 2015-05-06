@@ -2178,6 +2178,12 @@
 	* doc/invoke.texi (AArch64 Options): Document -mfix-cortex-a53-843419
 	and -mno-fix-cortex-a53-843419 options.
 
+2015-05-06  Christian Bruel  <christian.bruel@st.com>
+
+	PR target/66015
+	* config/aarch64/aarch64.c (aarch64_override_options): Move align_loops,
+	align_jumps, align_functions into aarch64_override_options_after_change.
+
 2015-05-06  Uros Bizjak  <ubizjak@gmail.com>
 
 	PR target/65990
