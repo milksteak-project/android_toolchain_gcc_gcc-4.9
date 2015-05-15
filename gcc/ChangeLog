@@ -2088,6 +2088,13 @@
 	replacements in memory addresses.
 	(get_unaligned_address): Ditto.
 
+2015-05-15  Kyrylo Tkachov  <kyrylo.tkachov@arm.com>
+
+	* config/aarch64/aarch64.h (AARCH64_TUNE_SLOWMUL): Delete.
+	(AARCH64_FL_SLOWMUL): Delete.
+	(AARCH64_FL_CRC): Redefine to 1<<3.
+	(AARCH64_FL_USE_FMA_STEERING_PASS): Redefine to 1<<4.
+
 2015-05-14  Kyrylo Tkachov  <kyrylo.tkachov@arm.com>
 
 	Backport from mainline
