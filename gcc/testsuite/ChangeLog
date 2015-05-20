@@ -1223,6 +1223,11 @@
 
 	* gcc.target/powerpc/pr60158.c: New test.
 
+2015-05-20  Bin Cheng  <bin.cheng@arm.com>
+
+	PR tree-optimization/65447
+	* gcc.dg/tree-ssa/pr65447.c: New test.
+
 2015-05-16  Uros Bizjak  <ubizjak@gmail.com>
 
 	PR target/66140
