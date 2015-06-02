@@ -1157,6 +1157,14 @@
 
 2015-06-02  Bin Cheng  <bin.cheng@arm.com>
 
+	PR tree-optimization/48052
+	* gcc.dg/tree-ssa/scev-8.c: New.
+	* gcc.dg/tree-ssa/scev-9.c: New.
+	* gcc.dg/tree-ssa/scev-10.c: New.
+	* gcc.dg/vect/pr48052.c: New.
+
+2015-06-02  Bin Cheng  <bin.cheng@arm.com>
+
 	PR tree-optimization/52563
 	PR tree-optimization/62173
 	* gcc.dg/tree-ssa/scev-3.c: Remove xfail.
