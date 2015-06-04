@@ -6640,7 +6640,7 @@ aarch64_override_options (void)
     }
 
   if (AARCH64_TUNE_FMA_STEERING)
-    aarch64_register_fma_steering ();
+  aarch64_register_fma_steering ();
 
   aarch64_override_options_after_change ();
 
