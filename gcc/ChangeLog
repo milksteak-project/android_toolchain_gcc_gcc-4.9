@@ -1679,6 +1679,15 @@
 	(AARCH64_FUSE_ADRP_LDR): Likewise.
 	(AARCH64_FUSE_CMP_BRANCH): Likewise.
 
+2015-06-26  Jiong Wang  <jiong.wang@arm.com>
+
+	* config/aarch64/aarch64-protos.h (aarch64_symbol_type): Rename
+	SYMBOL_SMALL_GOT to SYMBOL_SMALL_GOT_4G.
+	* config/aarch64/aarch64.c (aarch64_load_symref_appropriately): Ditto.
+	(aarch64_expand_mov_immediate): Ditto.
+	(aarch64_print_operand): Ditto.
+	(aarch64_classify_symbol): Ditto.
+
 2015-06-26  Jakub Jelinek  <jakub@redhat.com>
 
 	* BASE-VER: Set to 4.9.4.
