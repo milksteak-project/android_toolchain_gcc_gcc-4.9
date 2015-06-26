@@ -1054,7 +1054,7 @@ public:
   /* opt_pass methods: */
   virtual bool gate (function *)
     {
-      return (aarch64_tune_params->extra_tuning_flags
+      return (aarch64_tune_params.extra_tuning_flags
 	      & AARCH64_EXTRA_TUNE_RENAME_FMA_REGS)
 	      && optimize >= 2;
     }
