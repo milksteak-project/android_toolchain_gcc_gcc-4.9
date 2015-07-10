@@ -1569,6 +1569,11 @@
 	(varous peephole2s): Use {GENERAL,SSE,MMX}_REGNO_P instead of
 	{GENERAL,SSE,MMX}_REG_P where appropriate.
 
+2015-07-10  Jiong Wang  <jiong.wang@arm.com>
+
+	* config/aarch64/aarch64.c (aarch64_load_symref_appropriately): Mark mem
+	as READONLY and NOTRAP for PIC symbol.
+
 2015-07-10  Mantas Mikaitis  <Mantas.Mikaitis@arm.com>
 
 	* config/arm/arm.h (TARGET_NEON_FP): Remove conditional definition,

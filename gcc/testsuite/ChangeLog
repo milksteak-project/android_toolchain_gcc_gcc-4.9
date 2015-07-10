@@ -1018,6 +1018,10 @@
 	PR c++/66748
 	* g++.dg/abi/abi-tag15.C: New test.
 
+2015-07-10  Jiong Wang  <jiong.wang@arm.com>
+
+	* gcc.target/aarch64/got_mem_hoist_1.c: New test.
+
 2015-07-10  Mantas Mikaitis  <Mantas.Mikaitis@arm.com>
 
 	* gcc.target/arm/macro_defs0.c: New test.
