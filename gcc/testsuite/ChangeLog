@@ -950,6 +950,10 @@
 	PR target/58066
 	* gcc.target/i386/pr58066.c: New test.
 
+2015-07-29  Alan Lawrence  <alan.lawrence@arm.com>
+
+	* gcc.target/aarch64/f16_movs_1.c: New test.
+
 2015-07-25  Tom de Vries  <tom@codesourcery.com>
 
 	backport from trunk:
