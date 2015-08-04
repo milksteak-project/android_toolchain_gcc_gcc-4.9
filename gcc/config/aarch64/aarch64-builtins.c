@@ -687,10 +687,17 @@ aarch64_init_simd_builtin_scalar_types (void)
 					     "__builtin_aarch64_simd_udi");
 }
 
-static void
+static bool aarch64_simd_builtins_initialized_p = false;
+
+void
 aarch64_init_simd_builtins (void)
 {
   unsigned int i, fcode = AARCH64_SIMD_BUILTIN_BASE + 1;
+
+  if (aarch64_simd_builtins_initialized_p)
+    return;
+
+  aarch64_simd_builtins_initialized_p = true;
 
   aarch64_init_simd_builtin_types ();
 
@@ -850,8 +857,8 @@ aarch64_init_builtins (void)
 
   if (TARGET_SIMD)
     aarch64_init_simd_builtins ();
-  if (TARGET_CRC32)
-    aarch64_init_crc32_builtins ();
+
+  aarch64_init_crc32_builtins ();
 }
 
 tree
@@ -869,6 +876,31 @@ typedef enum
   SIMD_ARG_CONSTANT,
   SIMD_ARG_STOP
 } builtin_simd_arg;
+
+/* Relayout the decl of a function arg.  Keep the RTL component the same,
+   as varasm.c ICEs.  It doesn't like reinitializing the RTL
+   on PARM decls.  Something like this needs to be done when compiling a
+   file without SIMD and then tagging a function with +simd and using SIMD
+   intrinsics in there.  The types will have been laid out assuming no SIMD,
+   so we want to re-lay them out.  */
+
+static void
+aarch64_relayout_simd_param (tree arg)
+{
+  tree argdecl = arg;
+  if (TREE_CODE (argdecl) == SSA_NAME)
+    argdecl = SSA_NAME_VAR (argdecl);
+
+  if (argdecl
+      && (TREE_CODE (argdecl) == PARM_DECL
+    || TREE_CODE (argdecl) == VAR_DECL))
+    {
+      rtx rtl = NULL_RTX;
+      rtl = DECL_RTL_IF_SET (argdecl);
+      relayout_decl (argdecl);
+      SET_DECL_RTL (argdecl, rtl);
+    }
+}
 
 static rtx
 aarch64_simd_expand_args (rtx target, int icode, int have_retval,
@@ -896,6 +928,7 @@ aarch64_simd_expand_args (rtx target, int icode, int have_retval,
       else
 	{
 	  arg[argc] = CALL_EXPR_ARG (exp, argc);
+    aarch64_relayout_simd_param (arg);
 	  op[argc] = expand_normal (arg[argc]);
 	  mode[argc] = insn_data[icode].operand[argc + have_retval].mode;
 
