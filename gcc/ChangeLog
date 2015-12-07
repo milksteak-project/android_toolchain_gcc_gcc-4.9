@@ -1028,6 +1028,13 @@
 	(expand_stack_vars): Align prev_frame to be sure
 	data->asan_vec elements aligned properly.
 
+2015-12-07  Evandro Menezes  <e.menezes@samsung.com>
+
+	* config/aarch64/aarch64-cores.def: Use the Exynos M1 sched model.
+	* config/aarch64/aarch64.md: Include "exynos-m1.md".
+	* config/arm/arm.md: Likewise.
+	* config/arm/exynos-m1.md: New file.
+
 2015-12-04  Andreas Tobler  <andreast@gcc.gnu.org>
 
 	Backport from mainline
