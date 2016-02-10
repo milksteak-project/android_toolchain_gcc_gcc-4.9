@@ -3696,6 +3696,12 @@
 	PR target/60111
 	* config/sh/sh.c: Use signed char for signed field.
 
+2014-11-22  Uros Bizjak  <ubizjak@gmail.com>
+
+       * params.def (PARAM_MAX_COMPLETELY_PEELED_INSNS): Increase to 200.
+       * config/i386/i386.c (ix86_option_override_internal): Do not increase
+       PARAM_MAX_COMPLETELY_PEELED_INSNS.
+
 2014-11-21  Bill Schmidt  <wschmidt@linux.vnet.ibm.com>
 
 	PR target/63673
@@ -3708,6 +3714,12 @@
 	PR tree-optimization/61750
 	* tree-ssa-forwprop.c (simplify_vce): Verify type sizes
 	match for the resulting VIEW_CONVERT_EXPR.
+
+2014-11-19  Wilco Dijkstra  <wdijkstr@arm.com>
+
+	PR target/61915
+	* config/aarch64/aarch64.c (generic_regmove_cost): Increase FP move
+	cost.
 
 2014-11-19  Uros Bizjak  <ubizjak@gmail.com>
 
@@ -6363,6 +6375,16 @@
 	PR target/60969
 	* config/i386/i386.md (*movsf_internal): Set MODE to SI for
 	alternative 12.
+
+2014-05-16  James Greenhalgh  <james.greenhalgh@arm.com>
+           Philipp Tomsich  <philipp.tomsich@theobroma-systems.com>
+
+       * config/aarch64/aarch64.c (aarch64_strip_shift_or_extend): Rename
+       to...
+       (aarch64_strip_extend): ...this, don't strip shifts, check RTX is
+       well formed.
+       (aarch64_rtx_mult_cost): New.
+       (aarch64_rtx_costs): Use it, refactor as appropriate.
 
 2014-05-16  Vladimir Makarov  <vmakarov@redhat.com>
 

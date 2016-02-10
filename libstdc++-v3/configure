@@ -665,6 +665,9 @@ LIBICONV
 OPT_LDFLAGS
 SECTION_LDFLAGS
 GLIBCXX_LIBS
+ENABLE_BIONIC_LIBS_FALSE
+ENABLE_BIONIC_LIBS_TRUE
+USE_BIONIC_LIBS
 ENABLE_VTABLE_VERIFY_FALSE
 ENABLE_VTABLE_VERIFY_TRUE
 VTV_CXXLINKFLAGS
@@ -875,6 +878,7 @@ enable_extern_template
 with_python_dir
 enable_werror
 enable_vtable_verify
+enable_bionic_libs
 enable_libstdcxx_time
 enable_tls
 enable_rpath
@@ -1568,6 +1572,7 @@ Optional Features:
                           enable extern template [default=yes]
   --enable-werror         turns on -Werror [default=yes]
   --enable-vtable-verify  enable vtable verify [default=no]
+  --enable-bionic-libs    enable bionic libs [default=no]
   --enable-libstdcxx-time[=KIND]
                           use KIND for check type [default=auto]
   --enable-tls            Use thread-local storage [default=yes]
@@ -11544,7 +11549,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<_LT_EOF
-#line 11544 "configure"
+#line 11552 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -11650,7 +11655,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<_LT_EOF
-#line 11650 "configure"
+#line 11658 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -15070,7 +15075,7 @@ fi
     #
     # Fake what AC_TRY_COMPILE does.  XXX Look at redoing this new-style.
     cat > conftest.$ac_ext << EOF
-#line 15070 "configure"
+#line 15078 "configure"
 struct S { ~S(); };
 void bar();
 void foo()
@@ -15422,7 +15427,7 @@ $as_echo "$glibcxx_cv_atomic_long_long" >&6; }
   # Fake what AC_TRY_COMPILE does.
 
     cat > conftest.$ac_ext << EOF
-#line 15420 "configure"
+#line 15430 "configure"
 int main()
 {
   typedef bool atomic_type;
@@ -15457,7 +15462,7 @@ $as_echo "$glibcxx_cv_atomic_bool" >&6; }
     rm -f conftest*
 
     cat > conftest.$ac_ext << EOF
-#line 15455 "configure"
+#line 15465 "configure"
 int main()
 {
   typedef short atomic_type;
@@ -15492,7 +15497,7 @@ $as_echo "$glibcxx_cv_atomic_short" >&6; }
     rm -f conftest*
 
     cat > conftest.$ac_ext << EOF
-#line 15490 "configure"
+#line 15500 "configure"
 int main()
 {
   // NB: _Atomic_word not necessarily int.
@@ -15528,7 +15533,7 @@ $as_echo "$glibcxx_cv_atomic_int" >&6; }
     rm -f conftest*
 
     cat > conftest.$ac_ext << EOF
-#line 15526 "configure"
+#line 15536 "configure"
 int main()
 {
   typedef long long atomic_type;
@@ -15607,7 +15612,7 @@ $as_echo "$as_me: WARNING: Performance of certain classes will degrade as a resu
   # unnecessary for this test.
 
     cat > conftest.$ac_ext << EOF
-#line 15605 "configure"
+#line 15615 "configure"
 int main()
 {
   _Decimal32 d1;
@@ -15649,7 +15654,7 @@ ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
   # unnecessary for this test.
 
     cat > conftest.$ac_ext << EOF
-#line 15647 "configure"
+#line 15657 "configure"
 template<typename T1, typename T2>
   struct same
   { typedef T2 type; };
@@ -15683,7 +15688,7 @@ $as_echo "$enable_int128" >&6; }
     rm -f conftest*
 
     cat > conftest.$ac_ext << EOF
-#line 15681 "configure"
+#line 15691 "configure"
 template<typename T1, typename T2>
   struct same
   { typedef T2 type; };
@@ -17450,6 +17455,36 @@ $as_echo "$enable_vtable_verify" >&6; }
   fi
 
 
+
+
+
+
+
+
+   # Check whether --enable-bionic-libs was given.
+if test "${enable_bionic_libs+set}" = set; then :
+  enableval=$enable_bionic_libs;
+      case "$enableval" in
+       yes|no) ;;
+       *) as_fn_error "Argument to enable/disable bionic-libs must be yes or no" "$LINENO" 5 ;;
+      esac
+
+else
+  enable_bionic_libs=no
+fi
+
+
+
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for bionic libs support" >&5
+$as_echo_n "checking for bionic libs support... " >&6; }
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $enable_bionic_libs" >&5
+$as_echo "$enable_bionic_libs" >&6; }
+
+  if test $enable_bionic_libs = yes; then
+    USE_BIONIC_LIBS="TRUE"
+  else
+    USE_BIONIC_LIBS="FALSE"
+  fi
 
 
 
@@ -77273,12 +77308,6 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 #include <sys/syscall.h>
 	   int lk;
-#if !defined(SYS_gettid)
-#define SYS_gettid __NR_gettid
-#endif
-#if !defined(SYS_futex)
-#define SYS_futex __NR_futex
-#endif
 int
 main ()
 {
@@ -77337,12 +77366,6 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 #include <sys/syscall.h>
 	   int lk;
-#if !defined(SYS_gettid)
-#define SYS_gettid __NR_gettid
-#endif
-#if !defined(SYS_futex)
-#define SYS_futex __NR_futex
-#endif
 int
 main ()
 {
@@ -78179,10 +78202,12 @@ fi
 $as_echo "$glibcxx_ptrdiff_t_is_i" >&6; }
 
 
+
 case "$target" in
-    *android*) libtool_version_info_string="-avoid-version" ;;
-    *) libtool_version_info_string="-version-info $libtool_VERSION"
+  *android*) libtool_version_info_string="-avoid-version" ;;
+  *) libtool_version_info_string="-version-info $libtool_VERSION"
 esac
+
 
 
  # Check whether --enable-libstdcxx-visibility was given.
@@ -78755,7 +78780,7 @@ $as_echo_n "checking for gthreads library... " >&6; }
 
   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
-#include "gthr-$target_thread_file.h"
+#include "gthr.h"
 int
 main ()
 {
@@ -79366,6 +79391,15 @@ else
 fi
 
 
+    if test $enable_bionic_libs = yes; then
+  ENABLE_BIONIC_LIBS_TRUE=
+  ENABLE_BIONIC_LIBS_FALSE='#'
+else
+  ENABLE_BIONIC_LIBS_TRUE='#'
+  ENABLE_BIONIC_LIBS_FALSE=
+fi
+
+
     if test $enable_symvers != no; then
   ENABLE_SYMVERS_TRUE=
   ENABLE_SYMVERS_FALSE='#'
@@ -79815,6 +79849,10 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${ENABLE_VTABLE_VERIFY_TRUE}" && test -z "${ENABLE_VTABLE_VERIFY_FALSE}"; then
   as_fn_error "conditional \"ENABLE_VTABLE_VERIFY\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${ENABLE_BIONIC_LIBS_TRUE}" && test -z "${ENABLE_BIONIC_LIBS_FALSE}"; then
+  as_fn_error "conditional \"ENABLE_BIONIC_LIBS\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${ENABLE_SYMVERS_TRUE}" && test -z "${ENABLE_SYMVERS_FALSE}"; then
