@@ -559,6 +559,13 @@
 	* gcse.c (compute_ld_motion_mems): Tidy up and also invalidate memory
 	references present in REG_EQUAL notes attached to non-SET patterns.
 
+2016-02-23  Evandro Menezes  <e.menezes@samsung.com>
+
+	* config/arm/exynos-m1.md: Change cost of STP, fix bypass for stores
+	and add bypass for AES{D,E} and AESMC pairs.
+	* config/aarch64/aarch64.c (exynosm1_tunings): Enable fusion of AES{D,E}
+	and AESMC pairs.
+
 2016-02-17  Bill Schmidt  <wschmidt@linux.vnet.ibm.com>
 
 	Backport from mainline
