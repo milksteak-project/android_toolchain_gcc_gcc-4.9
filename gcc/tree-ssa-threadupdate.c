@@ -156,7 +156,7 @@ dump_jump_thread_path (FILE *dump_file, vec<jump_thread_edge *> path,
 		       bool registering)
 {
   fprintf (dump_file,
-	   "  %s%s jump thread: (%d, %d) incoming edge; ",
+	   "  %s jump thread: (%d, %d) incoming edge; ",
 	   (registering ? "Registering" : "Cancelling"),
 	   (path[0]->type == EDGE_FSM_THREAD ? " FSM": ""),
 	   path[0]->e->src->index, path[0]->e->dest->index);
