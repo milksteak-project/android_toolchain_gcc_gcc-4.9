@@ -545,6 +545,13 @@
 	(ira): Call indirect_jump_optimize and delete_trivially_dead_insns
 	before regstat_compute_ri.  Don't rebuild_jump_labels here.
 
+2016-03-17  Evandro Menezes  <e.menezes@samsung.com>
+	
+	Tweak the pipeline model for Exynos M1
+
+	* config/aarch64/aarch64.c (exynosm1_tunings): 	Enable weak prefetching
+	model.
+
 2016-03-04  Jakub Jelinek  <jakub@redhat.com>
 
 	PR target/70059

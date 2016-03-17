@@ -488,7 +488,7 @@ static const struct tune_params exynosm1_tunings =
   2,	/* min_div_recip_mul_df.  */
   48,	/* max_case_values.  */
   64,	/* cache_line_size.  */
-  tune_params::AUTOPREFETCHER_OFF, /* autoprefetcher_model.  */
+  tune_params::AUTOPREFETCHER_WEAK, /* autoprefetcher_model.  */
   (AARCH64_EXTRA_TUNE_RECIP_SQRT) /* tune_flags.  */
 };
 
