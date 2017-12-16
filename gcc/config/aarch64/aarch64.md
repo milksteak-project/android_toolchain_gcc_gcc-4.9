@@ -4004,15 +4004,15 @@
   enum machine_mode mode = GET_MODE (operands[0]);
 
   emit_insn ((mode == DImode
-	      ? gen_stack_protect_set_di
-	      : gen_stack_protect_set_si) (operands[0], operands[1]));
+        ? gen_stack_protect_set_di
+        : gen_stack_protect_set_si) (operands[0], operands[1]));
   DONE;
 })
 
 (define_insn "stack_protect_set_<mode>"
   [(set (match_operand:PTR 0 "memory_operand" "=m")
-	(unspec:PTR [(match_operand:PTR 1 "memory_operand" "m")]
-	 UNSPEC_SP_SET))
+  (unspec:PTR [(match_operand:PTR 1 "memory_operand" "m")]
+   UNSPEC_SP_SET))
    (set (match_scratch:PTR 2 "=&r") (const_int 0))]
   ""
   "ldr\\t%<w>2, %1\;str\\t%<w>2, %0\;mov\t%<w>2,0"
@@ -4031,25 +4031,25 @@
   result = gen_reg_rtx(mode);
 
   emit_insn ((mode == DImode
-	      ? gen_stack_protect_test_di
-	      : gen_stack_protect_test_si) (result,
-					    operands[0],
-					    operands[1]));
+        ? gen_stack_protect_test_di
+        : gen_stack_protect_test_si) (result,
+              operands[0],
+              operands[1]));
 
   if (mode == DImode)
     emit_jump_insn (gen_cbranchdi4 (gen_rtx_EQ (VOIDmode, result, const0_rtx),
-				    result, const0_rtx, operands[2]));
+            result, const0_rtx, operands[2]));
   else
     emit_jump_insn (gen_cbranchsi4 (gen_rtx_EQ (VOIDmode, result, const0_rtx),
-				    result, const0_rtx, operands[2]));
+            result, const0_rtx, operands[2]));
   DONE;
 })
 
 (define_insn "stack_protect_test_<mode>"
   [(set (match_operand:PTR 0 "register_operand" "=r")
-	(unspec:PTR [(match_operand:PTR 1 "memory_operand" "m")
-		     (match_operand:PTR 2 "memory_operand" "m")]
-	 UNSPEC_SP_TEST))
+  (unspec:PTR [(match_operand:PTR 1 "memory_operand" "m")
+         (match_operand:PTR 2 "memory_operand" "m")]
+   UNSPEC_SP_TEST))
    (clobber (match_scratch:PTR 3 "=&r"))]
   ""
   "ldr\t%<w>3, %x1\;ldr\t%<w>0, %x2\;eor\t%<w>0, %<w>3, %<w>0"
@@ -4119,8 +4119,8 @@
   bcomp = gen_rtx_NE (VOIDmode, cc_reg, const0_rtx);
   loc_ref = gen_rtx_LABEL_REF (VOIDmode, operands [1]);
   emit_jump_insn (gen_rtx_SET (VOIDmode, pc_rtx,
-			       gen_rtx_IF_THEN_ELSE (VOIDmode, bcomp,
-						     loc_ref, pc_rtx)));
+             gen_rtx_IF_THEN_ELSE (VOIDmode, bcomp,
+                 loc_ref, pc_rtx)));
   DONE;
 })
 

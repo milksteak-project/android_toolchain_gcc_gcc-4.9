@@ -6622,7 +6622,30 @@ aarch64_override_options (void)
 #endif
     }
 
+  if (aarch64_fix_a53_err835769 == 2)
+    {
+#ifdef TARGET_FIX_ERR_A53_835769_DEFAULT
+      aarch64_fix_a53_err835769 = 1;
+#else
+      aarch64_fix_a53_err835769 = 0;
+#endif
+    }
+
   aarch64_override_options_after_change ();
+
+  if (TARGET_ANDROID)
+    {
+      /* Lower the complete unroll code size limits.
+         Loop unroll needs some tuning in arm and aarch64.  */
+      maybe_set_param_value (PARAM_MAX_DEFAULT_COMPLETELY_PEELED_INSNS, 50,
+                             global_options.x_param_values,
+                             global_options_set.x_param_values);
+
+      /* Disable array_bound warning. Work around isses
+         introduced in complete unroll.  */
+      global_options.x_warn_array_bounds = 0;
+    }
+
 }
 
 /* Implement targetm.override_options_after_change.  */

@@ -1152,4 +1152,6 @@ class web_entry_base
   friend bool unionfind_union (web_entry_base *first, web_entry_base *second);
 };
 
+extern bool df_check_ud_du_memory_usage (void);
+
 #endif /* GCC_DF_H */

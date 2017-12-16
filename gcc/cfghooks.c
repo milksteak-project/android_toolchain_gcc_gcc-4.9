@@ -500,7 +500,6 @@ split_block (basic_block bb, void *i)
 
   new_bb->count = bb->count;
   new_bb->frequency = bb->frequency;
-  new_bb->discriminator = bb->discriminator;
 
   if (dom_info_available_p (CDI_DOMINATORS))
     {
@@ -825,6 +824,9 @@ make_forwarder_block (basic_block bb, bool (*redirect_edge_p) (edge),
 
   fallthru = split_block_after_labels (bb);
   dummy = fallthru->src;
+  dummy->count = 0;
+  dummy->frequency = 0;
+  fallthru->count = 0;
   bb = fallthru->dest;
 
   /* Redirect back edges we want to keep.  */
@@ -834,19 +836,12 @@ make_forwarder_block (basic_block bb, bool (*redirect_edge_p) (edge),
 
       if (redirect_edge_p (e))
 	{
+	  dummy->frequency += EDGE_FREQUENCY (e);
+	  dummy->count += e->count;
+	  fallthru->count += e->count;
 	  ei_next (&ei);
 	  continue;
 	}
-
-      dummy->frequency -= EDGE_FREQUENCY (e);
-      dummy->count -= e->count;
-      if (dummy->frequency < 0)
-	dummy->frequency = 0;
-      if (dummy->count < 0)
-	dummy->count = 0;
-      fallthru->count -= e->count;
-      if (fallthru->count < 0)
-	fallthru->count = 0;
 
       e_src = e->src;
       jump = redirect_edge_and_branch_force (e, bb);

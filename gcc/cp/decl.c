@@ -57,6 +57,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "timevar.h"
 #include "pointer-set.h"
 #include "splay-tree.h"
+#include "cgraph.h"
 #include "plugin.h"
 #include "cgraph.h"
 #include "cilk.h"
@@ -2468,7 +2469,26 @@ duplicate_decls (tree newdecl, tree olddecl, bool newdecl_is_friend)
   /* The NEWDECL will no longer be needed.  Because every out-of-class
      declaration of a member results in a call to duplicate_decls,
      freeing these nodes represents in a significant savings.  */
-  ggc_free (newdecl);
+  {
+    tree clone;
+    bool found_clone = false;
+    /* Fix dangling reference.  */
+    FOR_EACH_CLONE (clone, newdecl)
+      {
+        if (DECL_CLONED_FUNCTION (clone) == newdecl)
+          {
+            found_clone = true;
+            break;
+          }
+        if (DECL_ABSTRACT_ORIGIN (clone) == newdecl)
+          {
+            found_clone = true;
+            break;
+          }
+      }
+    if (!found_clone)
+      ggc_free (newdecl);
+  }
 
   return olddecl;
 }
@@ -3697,6 +3717,7 @@ cxx_init_decl_processing (void)
 {
   tree void_ftype;
   tree void_ftype_ptr;
+  tree void_ftype_ptr_sizetype;
 
   /* Create all the identifiers we need.  */
   initialize_predefined_identifiers ();
@@ -3758,8 +3779,14 @@ cxx_init_decl_processing (void)
   void_ftype = build_function_type_list (void_type_node, NULL_TREE);
   void_ftype_ptr = build_function_type_list (void_type_node,
 					     ptr_type_node, NULL_TREE);
+  void_ftype_ptr_sizetype = build_function_type_list (void_type_node,
+                                                      ptr_type_node,
+                                                      size_type_node,
+                                                      NULL_TREE);
   void_ftype_ptr
     = build_exception_variant (void_ftype_ptr, empty_except_spec);
+  void_ftype_ptr_sizetype
+    = build_exception_variant (void_ftype_ptr_sizetype, empty_except_spec);
 
   /* C++ extensions */
 
@@ -3810,7 +3837,7 @@ cxx_init_decl_processing (void)
 
   {
     tree newattrs, extvisattr;
-    tree newtype, deltype;
+    tree newtype, deltype, deltype2;
     tree ptr_ftype_sizetype;
     tree new_eh_spec;
 
@@ -3848,10 +3875,12 @@ cxx_init_decl_processing (void)
     newtype = build_exception_variant (newtype, new_eh_spec);
     deltype = cp_build_type_attribute_variant (void_ftype_ptr, extvisattr);
     deltype = build_exception_variant (deltype, empty_except_spec);
+    deltype2 = build_exception_variant (void_ftype_ptr_sizetype, empty_except_spec);
     DECL_IS_OPERATOR_NEW (push_cp_library_fn (NEW_EXPR, newtype, 0)) = 1;
     DECL_IS_OPERATOR_NEW (push_cp_library_fn (VEC_NEW_EXPR, newtype, 0)) = 1;
     global_delete_fndecl = push_cp_library_fn (DELETE_EXPR, deltype, ECF_NOTHROW);
     push_cp_library_fn (VEC_DELETE_EXPR, deltype, ECF_NOTHROW);
+    push_cp_library_fn (DELETE_EXPR, deltype2, ECF_NOTHROW);
 
     nullptr_type_node = make_node (NULLPTR_TYPE);
     TYPE_SIZE (nullptr_type_node) = bitsize_int (GET_MODE_BITSIZE (ptr_mode));
@@ -5924,6 +5953,10 @@ make_rtl_for_nonlocal_decl (tree decl, tree init, const char* asmspec)
 	   && DECL_IMPLICIT_INSTANTIATION (decl))
     defer_p = 1;
 
+  /* Capture the current module info.  */
+  if (L_IPO_COMP_MODE)
+    varpool_node_for_decl (decl);
+
   /* If we're not deferring, go ahead and assemble the variable.  */
   if (!defer_p)
     rest_of_decl_compilation (decl, toplev, at_eof);
@@ -7003,7 +7036,7 @@ expand_static_init (tree decl, tree init)
 	 looks like:
 
 	   static <type> guard;
-	   if (!guard.first_byte) {
+	   if (!__atomic_load (guard.first_byte)) {
 	     if (__cxa_guard_acquire (&guard)) {
 	       bool flag = false;
 	       try {
@@ -7033,16 +7066,11 @@ expand_static_init (tree decl, tree init)
       /* Create the guard variable.  */
       guard = get_guard (decl);
 
-      /* This optimization isn't safe on targets with relaxed memory
-	 consistency.  On such targets we force synchronization in
-	 __cxa_guard_acquire.  */
-      if (!targetm.relaxed_ordering || !thread_guard)
-	{
-	  /* Begin the conditional initialization.  */
-	  if_stmt = begin_if_stmt ();
-	  finish_if_stmt_cond (get_guard_cond (guard), if_stmt);
-	  then_clause = begin_compound_stmt (BCS_NO_SCOPE);
-	}
+      /* Begin the conditional initialization.  */
+      if_stmt = begin_if_stmt ();
+
+      finish_if_stmt_cond (get_guard_cond (guard, thread_guard), if_stmt);
+      then_clause = begin_compound_stmt (BCS_NO_SCOPE);
 
       if (thread_guard)
 	{
@@ -7111,12 +7139,9 @@ expand_static_init (tree decl, tree init)
 	  finish_if_stmt (inner_if_stmt);
 	}
 
-      if (!targetm.relaxed_ordering || !thread_guard)
-	{
-	  finish_compound_stmt (then_clause);
-	  finish_then_clause (if_stmt);
-	  finish_if_stmt (if_stmt);
-	}
+      finish_compound_stmt (then_clause);
+      finish_then_clause (if_stmt);
+      finish_if_stmt (if_stmt);
     }
   else if (DECL_THREAD_LOCAL_P (decl))
     tls_aggregates = tree_cons (init, decl, tls_aggregates);

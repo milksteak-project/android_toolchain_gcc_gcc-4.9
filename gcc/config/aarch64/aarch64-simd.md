@@ -992,9 +992,9 @@
 
 (define_insn "move_lo_quad_internal_<mode>"
   [(set (match_operand:VQ_NO2E 0 "register_operand" "=w,w,w")
-	(vec_concat:VQ_NO2E
-	  (match_operand:<VHALF> 1 "register_operand" "w,r,r")
-	  (vec_duplicate:<VHALF> (const_int 0))))]
+  (vec_concat:VQ_NO2E
+    (match_operand:<VHALF> 1 "register_operand" "w,r,r")
+    (vec_duplicate:<VHALF> (const_int 0))))]
   "TARGET_SIMD && !BYTES_BIG_ENDIAN"
   "@
    dup\\t%d0, %1.d[0]
@@ -1008,9 +1008,9 @@
 
 (define_insn "move_lo_quad_internal_<mode>"
   [(set (match_operand:VQ_2E 0 "register_operand" "=w,w,w")
-	(vec_concat:VQ_2E
-	  (match_operand:<VHALF> 1 "register_operand" "w,r,r")
-	  (const_int 0)))]
+  (vec_concat:VQ_2E
+    (match_operand:<VHALF> 1 "register_operand" "w,r,r")
+    (const_int 0)))]
   "TARGET_SIMD && !BYTES_BIG_ENDIAN"
   "@
    dup\\t%d0, %1.d[0]
@@ -1024,9 +1024,9 @@
 
 (define_insn "move_lo_quad_internal_be_<mode>"
   [(set (match_operand:VQ_NO2E 0 "register_operand" "=w,w,w")
-	(vec_concat:VQ_NO2E
-	  (vec_duplicate:<VHALF> (const_int 0))
-	  (match_operand:<VHALF> 1 "register_operand" "w,r,r")))]
+  (vec_concat:VQ_NO2E
+    (vec_duplicate:<VHALF> (const_int 0))
+    (match_operand:<VHALF> 1 "register_operand" "w,r,r")))]
   "TARGET_SIMD && BYTES_BIG_ENDIAN"
   "@
    dup\\t%d0, %1.d[0]
@@ -1040,9 +1040,9 @@
 
 (define_insn "move_lo_quad_internal_be_<mode>"
   [(set (match_operand:VQ_2E 0 "register_operand" "=w,w,w")
-	(vec_concat:VQ_2E
-	  (const_int 0)
-	  (match_operand:<VHALF> 1 "register_operand" "w,r,r")))]
+  (vec_concat:VQ_2E
+    (const_int 0)
+    (match_operand:<VHALF> 1 "register_operand" "w,r,r")))]
   "TARGET_SIMD && BYTES_BIG_ENDIAN"
   "@
    dup\\t%d0, %1.d[0]
@@ -1078,7 +1078,7 @@
           (vec_select:<VHALF>
                 (match_dup 0)
                 (match_operand:VQ 2 "vect_par_cnst_lo_half" ""))
-	  (match_operand:<VHALF> 1 "register_operand" "w,r")))]
+    (match_operand:<VHALF> 1 "register_operand" "w,r")))]
   "TARGET_SIMD && !BYTES_BIG_ENDIAN"
   "@
    ins\\t%0.d[1], %1.d[0]
@@ -1089,7 +1089,7 @@
 (define_insn "aarch64_simd_move_hi_quad_be_<mode>"
   [(set (match_operand:VQ 0 "register_operand" "+w,w")
         (vec_concat:VQ
-	  (match_operand:<VHALF> 1 "register_operand" "w,r")
+    (match_operand:<VHALF> 1 "register_operand" "w,r")
           (vec_select:<VHALF>
                 (match_dup 0)
                 (match_operand:VQ 2 "vect_par_cnst_lo_half" ""))))]
@@ -1108,10 +1108,10 @@
   rtx p = aarch64_simd_vect_par_cnst_half (<MODE>mode, false);
   if (BYTES_BIG_ENDIAN)
     emit_insn (gen_aarch64_simd_move_hi_quad_be_<mode> (operands[0],
-		    operands[1], p));
+        operands[1], p));
   else
     emit_insn (gen_aarch64_simd_move_hi_quad_<mode> (operands[0],
-		    operands[1], p));
+        operands[1], p));
   DONE;
 })
 
@@ -2549,8 +2549,8 @@
 (define_insn "*aarch64_combinez<mode>"
   [(set (match_operand:<VDBL> 0 "register_operand" "=&w")
         (vec_concat:<VDBL>
-	   (match_operand:VDIC 1 "register_operand" "w")
-	   (match_operand:VDIC 2 "aarch64_simd_imm_zero" "Dz")))]
+     (match_operand:VDIC 1 "register_operand" "w")
+     (match_operand:VDIC 2 "aarch64_simd_imm_zero" "Dz")))]
   "TARGET_SIMD && !BYTES_BIG_ENDIAN"
   "mov\\t%0.8b, %1.8b"
   [(set_attr "type" "neon_move<q>")]
@@ -2559,8 +2559,8 @@
 (define_insn "*aarch64_combinez_be<mode>"
   [(set (match_operand:<VDBL> 0 "register_operand" "=&w")
         (vec_concat:<VDBL>
-	   (match_operand:VDIC 2 "aarch64_simd_imm_zero" "Dz")
-	   (match_operand:VDIC 1 "register_operand" "w")))]
+     (match_operand:VDIC 2 "aarch64_simd_imm_zero" "Dz")
+     (match_operand:VDIC 1 "register_operand" "w")))]
   "TARGET_SIMD && BYTES_BIG_ENDIAN"
   "mov\\t%0.8b, %1.8b"
   [(set_attr "type" "neon_move<q>")]
@@ -2591,7 +2591,7 @@
 (define_insn_and_split "aarch64_combine_internal<mode>"
   [(set (match_operand:<VDBL> 0 "register_operand" "=&w")
         (vec_concat:<VDBL> (match_operand:VDC 1 "register_operand" "w")
-			   (match_operand:VDC 2 "register_operand" "w")))]
+         (match_operand:VDC 2 "register_operand" "w")))]
   "TARGET_SIMD"
   "#"
   "&& reload_completed"
@@ -3069,18 +3069,18 @@
 (define_insn "aarch64_sqdml<SBINQOPS:as>l_lane<mode>_internal"
   [(set (match_operand:<VWIDE> 0 "register_operand" "=w")
         (SBINQOPS:<VWIDE>
-	  (match_operand:<VWIDE> 1 "register_operand" "0")
-	  (ss_ashift:<VWIDE>
-	    (mult:<VWIDE>
-	      (sign_extend:<VWIDE>
-		(match_operand:VD_HSI 2 "register_operand" "w"))
-	      (sign_extend:<VWIDE>
-		(vec_duplicate:VD_HSI
-		  (vec_select:<VEL>
-		    (match_operand:<VCOND> 3 "register_operand" "<vwx>")
-		    (parallel [(match_operand:SI 4 "immediate_operand" "i")])))
+    (match_operand:<VWIDE> 1 "register_operand" "0")
+    (ss_ashift:<VWIDE>
+      (mult:<VWIDE>
+        (sign_extend:<VWIDE>
+    (match_operand:VD_HSI 2 "register_operand" "w"))
+        (sign_extend:<VWIDE>
+    (vec_duplicate:VD_HSI
+      (vec_select:<VEL>
+        (match_operand:<VCOND> 3 "register_operand" "<vwx>")
+        (parallel [(match_operand:SI 4 "immediate_operand" "i")])))
               ))
-	    (const_int 1))))]
+      (const_int 1))))]
   "TARGET_SIMD"
   {
     operands[4] = GEN_INT (ENDIAN_LANE_N (<VCOND>mode, INTVAL (operands[4])));
@@ -3093,18 +3093,18 @@
 (define_insn "aarch64_sqdml<SBINQOPS:as>l_laneq<mode>_internal"
   [(set (match_operand:<VWIDE> 0 "register_operand" "=w")
         (SBINQOPS:<VWIDE>
-	  (match_operand:<VWIDE> 1 "register_operand" "0")
-	  (ss_ashift:<VWIDE>
-	    (mult:<VWIDE>
-	      (sign_extend:<VWIDE>
-		(match_operand:VD_HSI 2 "register_operand" "w"))
-	      (sign_extend:<VWIDE>
-		(vec_duplicate:VD_HSI
-		  (vec_select:<VEL>
-		    (match_operand:<VCONQ> 3 "register_operand" "<vwx>")
-		    (parallel [(match_operand:SI 4 "immediate_operand" "i")])))
+    (match_operand:<VWIDE> 1 "register_operand" "0")
+    (ss_ashift:<VWIDE>
+      (mult:<VWIDE>
+        (sign_extend:<VWIDE>
+    (match_operand:VD_HSI 2 "register_operand" "w"))
+        (sign_extend:<VWIDE>
+    (vec_duplicate:VD_HSI
+      (vec_select:<VEL>
+        (match_operand:<VCONQ> 3 "register_operand" "<vwx>")
+        (parallel [(match_operand:SI 4 "immediate_operand" "i")])))
               ))
-	    (const_int 1))))]
+      (const_int 1))))]
   "TARGET_SIMD"
   {
     operands[4] = GEN_INT (ENDIAN_LANE_N (<VCONQ>mode, INTVAL (operands[4])));
@@ -3117,17 +3117,17 @@
 (define_insn "aarch64_sqdml<SBINQOPS:as>l_lane<mode>_internal"
   [(set (match_operand:<VWIDE> 0 "register_operand" "=w")
         (SBINQOPS:<VWIDE>
-	  (match_operand:<VWIDE> 1 "register_operand" "0")
-	  (ss_ashift:<VWIDE>
-	    (mult:<VWIDE>
-	      (sign_extend:<VWIDE>
-		(match_operand:SD_HSI 2 "register_operand" "w"))
-	      (sign_extend:<VWIDE>
-		(vec_select:<VEL>
-		  (match_operand:<VCOND> 3 "register_operand" "<vwx>")
-		  (parallel [(match_operand:SI 4 "immediate_operand" "i")])))
+    (match_operand:<VWIDE> 1 "register_operand" "0")
+    (ss_ashift:<VWIDE>
+      (mult:<VWIDE>
+        (sign_extend:<VWIDE>
+    (match_operand:SD_HSI 2 "register_operand" "w"))
+        (sign_extend:<VWIDE>
+    (vec_select:<VEL>
+      (match_operand:<VCOND> 3 "register_operand" "<vwx>")
+      (parallel [(match_operand:SI 4 "immediate_operand" "i")])))
               )
-	    (const_int 1))))]
+      (const_int 1))))]
   "TARGET_SIMD"
   {
     operands[4] = GEN_INT (ENDIAN_LANE_N (<VCOND>mode, INTVAL (operands[4])));
@@ -3140,17 +3140,17 @@
 (define_insn "aarch64_sqdml<SBINQOPS:as>l_laneq<mode>_internal"
   [(set (match_operand:<VWIDE> 0 "register_operand" "=w")
         (SBINQOPS:<VWIDE>
-	  (match_operand:<VWIDE> 1 "register_operand" "0")
-	  (ss_ashift:<VWIDE>
-	    (mult:<VWIDE>
-	      (sign_extend:<VWIDE>
-		(match_operand:SD_HSI 2 "register_operand" "w"))
-	      (sign_extend:<VWIDE>
-		(vec_select:<VEL>
-		  (match_operand:<VCONQ> 3 "register_operand" "<vwx>")
-		  (parallel [(match_operand:SI 4 "immediate_operand" "i")])))
+    (match_operand:<VWIDE> 1 "register_operand" "0")
+    (ss_ashift:<VWIDE>
+      (mult:<VWIDE>
+        (sign_extend:<VWIDE>
+    (match_operand:SD_HSI 2 "register_operand" "w"))
+        (sign_extend:<VWIDE>
+    (vec_select:<VEL>
+      (match_operand:<VCONQ> 3 "register_operand" "<vwx>")
+      (parallel [(match_operand:SI 4 "immediate_operand" "i")])))
               )
-	    (const_int 1))))]
+      (const_int 1))))]
   "TARGET_SIMD"
   {
     operands[4] = GEN_INT (ENDIAN_LANE_N (<VCONQ>mode, INTVAL (operands[4])));
@@ -3171,8 +3171,8 @@
   aarch64_simd_lane_bounds (operands[4], 0, GET_MODE_NUNITS (<VCOND>mode));
   operands[4] = GEN_INT (ENDIAN_LANE_N (<VCOND>mode, INTVAL (operands[4])));
   emit_insn (gen_aarch64_sqdmlal_lane<mode>_internal (operands[0], operands[1],
-						      operands[2], operands[3],
-						      operands[4]));
+                  operands[2], operands[3],
+                  operands[4]));
   DONE;
 })
 

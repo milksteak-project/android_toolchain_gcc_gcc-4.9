@@ -189,14 +189,21 @@ case "$host" in
        void *g(void *d) { return NULL; }],
       [pthread_t t; pthread_create(&t,NULL,g,NULL);])],
      [XPCFLAGS=" -Wc,-pthread"],
-     [CFLAGS="$save_CFLAGS" LIBS="-lpthread $LIBS"
+     [CFLAGS="$save_CFLAGS" LIBS="$LIBS"
       AC_LINK_IFELSE(
        [AC_LANG_PROGRAM(
         [#include <pthread.h>
          void *g(void *d) { return NULL; }],
         [pthread_t t; pthread_create(&t,NULL,g,NULL);])],
        [],
-       [AC_MSG_ERROR([Pthreads are required to build libgomp])])])
+       [CFLAGS="$save_CFLAGS" LIBS="-lpthread $LIBS"
+        AC_LINK_IFELSE(
+         [AC_LANG_PROGRAM(
+          [#include <pthread.h>
+           void *g(void *d) { return NULL; }],
+          [pthread_t t; pthread_create(&t,NULL,g,NULL);])],
+         [],
+         [AC_MSG_ERROR([Pthreads are required to build libgomp])])])])
 esac
 
 # Check for functions needed.
@@ -243,6 +250,9 @@ fi
 
 # See if we support thread-local storage.
 GCC_CHECK_TLS
+
+# See if we have emulated thread-local storage.
+GCC_CHECK_EMUTLS
 
 # See what sort of export controls are available.
 LIBGOMP_CHECK_ATTRIBUTE_VISIBILITY
@@ -353,4 +363,5 @@ CFLAGS="$save_CFLAGS"
 
 AC_CONFIG_FILES(omp.h omp_lib.h omp_lib.f90 libgomp_f.h)
 AC_CONFIG_FILES(Makefile testsuite/Makefile libgomp.spec)
+AC_CONFIG_FILES(testsuite/gompconfig.exp)
 AC_OUTPUT

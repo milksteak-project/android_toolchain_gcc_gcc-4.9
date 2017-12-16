@@ -1,0 +1,46 @@
+# Google b/13175515 -- r208255 disabled self-assign in templates.
+FAIL: g++.dg/warn/Wself-assign-non-pod-3.C -std=gnu++98  (test for warnings, line 30)
+FAIL: g++.dg/warn/Wself-assign-non-pod-3.C -std=gnu++11  (test for warnings, line 30)
+FAIL: g++.dg/warn/Wself-assign-non-pod-3.C -std=gnu++1y  (test for warnings, line 30)
+FAIL: g++.dg/warn/Wself-assign-non-pod-5.C -std=gnu++98  (test for warnings, line 11)
+FAIL: g++.dg/warn/Wself-assign-non-pod-5.C -std=gnu++98  (test for warnings, line 26)
+FAIL: g++.dg/warn/Wself-assign-non-pod-5.C -std=gnu++11  (test for warnings, line 11)
+FAIL: g++.dg/warn/Wself-assign-non-pod-5.C -std=gnu++11  (test for warnings, line 26)
+FAIL: g++.dg/warn/Wself-assign-non-pod-5.C -std=gnu++1y  (test for warnings, line 11)
+FAIL: g++.dg/warn/Wself-assign-non-pod-5.C -std=gnu++1y  (test for warnings, line 26)
+
+FAIL: gcc.dg/wself-assign-1.c (test for warnings, line 15)
+FAIL: gcc.dg/wself-assign-1.c (test for warnings, line 19)
+FAIL: gcc.dg/wself-assign-1.c (test for warnings, line 20)
+FAIL: gcc.dg/wself-assign-1.c (test for warnings, line 21)
+FAIL: gcc.dg/wself-assign-1.c (test for warnings, line 22)
+
+# Google b/20184248
+FAIL: 17_intro/headers/c++1998/complex.cc (test for excess errors)
+FAIL: 26_numerics/complex/c99.cc (test for excess errors)
+
+# New (2016-08-15) failure due to stdlib; doesn't happen elsewhere in testsuite.
+FAIL: 17_intro/freestanding.cc (test for excess errors)
+UNRESOLVED: 17_intro/freestanding.cc compilation failed to produce executable
+
+# Google b/4094190: we disable libquadmath support, causing these failures:
+FAIL: gfortran.dg/erf_3.F90 -O0  execution test
+FAIL: gfortran.dg/erf_3.F90 -O1  execution test
+FAIL: gfortran.dg/erf_3.F90 -O2  execution test
+FAIL: gfortran.dg/erf_3.F90 -O3 -fomit-frame-pointer  execution test
+FAIL: gfortran.dg/erf_3.F90 -O3 -fomit-frame-pointer -funroll-loops  execution test
+FAIL: gfortran.dg/erf_3.F90 -O3 -fomit-frame-pointer -funroll-all-loops -finline-functions  execution test
+FAIL: gfortran.dg/erf_3.F90 -O3 -g  execution test
+FAIL: gfortran.dg/erf_3.F90 -Os  execution test
+
+# Sporadic timeouts in nightly testing.
+flaky | FAIL: 23_containers/list/pthread5.cc execution test
+flaky | FAIL: 27_io/basic_ofstream/pthread2.cc execution test
+flaky | FAIL: g++.dg/tls/thread_local4g.C -std=gnu++11 execution test
+flaky | FAIL: g++.dg/tls/thread_local4g.C -std=gnu++1y execution test
+flaky | FAIL: g++.dg/tls/thread_local4.C -std=gnu++11 execution test
+flaky | FAIL: g++.dg/tls/thread_local4.C -std=gnu++1y execution test
+
+# Sporadic OOMs in nightly testing.
+flaky | FAIL: libgomp.c++/cancel-parallel-2.C execution test
+flaky | FAIL: libgomp.c/cancel-parallel-2.c execution test

@@ -33,10 +33,33 @@ test01()
   regex re("((.)", regex_constants::basic);
 }
 
+// PR libstdc++/77356
+void
+test02()
+{
+  bool test __attribute__((unused)) = true;
+
+  static const char* kNumericAnchor ="(\\$|usd)(usd|\\$|to|and|up to|[0-9,\\.\\-\\sk])+";
+  const std::regex re(kNumericAnchor);
+  (void)re;
+}
+
+void
+test03()
+{
+  bool test __attribute__((unused)) = true;
+
+  VERIFY(regex_match_debug("!", std::regex("[![:alnum:]]")));
+  VERIFY(regex_match_debug("-", std::regex("[a-]", regex_constants::basic)));
+  VERIFY(regex_match_debug("-", std::regex("[a-]")));
+}
+
 int
 main()
 {
   test01();
+  test02();
+  test03();
   return 0;
 }
 

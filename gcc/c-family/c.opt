@@ -331,6 +331,10 @@ Wconversion-null
 C++ ObjC++ Var(warn_conversion_null) Init(1) Warning
 Warn for converting NULL from/to a non-pointer type
 
+Wself-assign-non-pod
+C++ ObjC++ Var(warn_self_assign_non_pod) Init(0) Warning
+Warn when a variable of a non-POD type is assigned to itself
+
 Wctor-dtor-privacy
 C++ ObjC++ Var(warn_ctor_dtor_privacy) Warning
 Warn when all constructors and destructors are private
@@ -1231,6 +1235,16 @@ No longer supported
 fweak
 C++ ObjC++ Var(flag_weak) Init(1)
 Emit common-like symbols as weak symbols
+
+fvague-linkage-functions
+C++ Var(flag_vague_linkage_functions) Init(1)
+Option -fno-vague-linkage-functions makes comdat functions static and local
+to the module. With -fno-vague-linkage-functions, virtual comdat functions
+still use vague linkage.  With -fno-vague-linkage-functions, the address of
+the comdat functions that are made local will be unique and this can cause
+unintended behavior when addresses of these comdat functions are used in
+comparisons.  This option may technically break the C++ ODR and users of
+this flag should know what they are doing.
 
 fwide-exec-charset=
 C ObjC C++ ObjC++ Joined RejectNegative

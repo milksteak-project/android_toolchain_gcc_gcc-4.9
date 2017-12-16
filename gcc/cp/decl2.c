@@ -107,9 +107,6 @@ static GTY(()) vec<tree, va_gc> *maybe_comdat_fns;
    sure are defined.  */
 static GTY(()) vec<tree, va_gc> *no_linkage_decls;
 
-/* Nonzero if we're done parsing and into end-of-file activities.  */
-
-int at_eof;
 
 
 /* Return a member function type (a METHOD_TYPE), given FNTYPE (a
@@ -1706,8 +1703,22 @@ mark_vtable_entries (tree decl)
 void
 comdat_linkage (tree decl)
 {
-  if (flag_weak)
-    make_decl_one_only (decl, cxx_comdat_group (decl));
+  if (flag_weak
+      && (flag_vague_linkage_functions
+	  || TREE_CODE (decl) != FUNCTION_DECL
+	  || DECL_VIRTUAL_P (decl)))
+    {
+      make_decl_one_only (decl, cxx_comdat_group (decl));
+      /* Warn when -fno-vague-linkage-functions is used and we found virtual
+	 comdat functions.  Virtual comdat functions must still use vague
+	 linkage.  */
+      if (TREE_CODE (decl) == FUNCTION_DECL
+	  && DECL_VIRTUAL_P (decl)
+	  && !flag_vague_linkage_functions)
+	warning_at (DECL_SOURCE_LOCATION (decl), 0,
+		    "fno-vague-linkage-functions: Comdat linkage of virtual "
+		    "function %q#D preserved.", decl);
+    }
   else if (TREE_CODE (decl) == FUNCTION_DECL
 	   || (VAR_P (decl) && DECL_ARTIFICIAL (decl)))
     /* We can just emit function and compiler-generated variables
@@ -2923,6 +2934,27 @@ get_guard (tree decl)
   return guard;
 }
 
+/* Return an atomic load of src with the appropriate memory model.  */
+
+static tree
+build_atomic_load_byte (tree src, HOST_WIDE_INT model)
+{
+  tree ptr_type = build_pointer_type (char_type_node);
+  tree mem_model = build_int_cst (integer_type_node, model);
+  tree t, addr, val;
+  unsigned int size;
+  int fncode;
+
+  size = tree_to_uhwi (TYPE_SIZE_UNIT (char_type_node));
+
+  fncode = BUILT_IN_ATOMIC_LOAD_N + exact_log2 (size) + 1;
+  t = builtin_decl_implicit ((enum built_in_function) fncode);
+
+  addr = build1 (ADDR_EXPR, ptr_type, src);
+  val = build_call_expr (t, 2, addr, mem_model);
+  return val;
+}
+
 /* Return those bits of the GUARD variable that should be set when the
    guarded entity is actually initialized.  */
 
@@ -2949,12 +2981,14 @@ get_guard_bits (tree guard)
    variable has already been initialized.  */
 
 tree
-get_guard_cond (tree guard)
+get_guard_cond (tree guard, bool thread_safe)
 {
   tree guard_value;
 
-  /* Check to see if the GUARD is zero.  */
-  guard = get_guard_bits (guard);
+  if (!thread_safe)
+    guard = get_guard_bits (guard);
+  else
+    guard = build_atomic_load_byte (guard, MEMMODEL_ACQUIRE);
 
   /* Mask off all but the low bit.  */
   if (targetm.cxx.guard_mask_bit ())
@@ -3040,9 +3074,15 @@ get_local_tls_init_fn (void)
 						  void_list_node));
       SET_DECL_LANGUAGE (fn, lang_c);
       TREE_PUBLIC (fn) = false;
+      TREE_STATIC (fn) = true;
       DECL_ARTIFICIAL (fn) = true;
       mark_used (fn);
       SET_IDENTIFIER_GLOBAL_VALUE (sname, fn);
+      /* In LIPO mode make sure we record the new global value so that it
+         is cleared before parsing the next aux module.  */
+      if (L_IPO_COMP_MODE && !is_parsing_done_p ())
+        add_decl_to_current_module_scope (fn,
+                                          NAMESPACE_LEVEL (global_namespace));
     }
   return fn;
 }
@@ -3107,6 +3147,11 @@ get_tls_init_fn (tree var)
       DECL_BEFRIENDING_CLASSES (fn) = var;
 
       SET_IDENTIFIER_GLOBAL_VALUE (sname, fn);
+      /* In LIPO mode make sure we record the new global value so that it
+         is cleared before parsing the next aux module.  */
+      if (L_IPO_COMP_MODE && !is_parsing_done_p ())
+        add_decl_to_current_module_scope (fn,
+                                          NAMESPACE_LEVEL (global_namespace));
     }
   return fn;
 }
@@ -3164,6 +3209,11 @@ get_tls_wrapper_fn (tree var)
       DECL_BEFRIENDING_CLASSES (fn) = var;
 
       SET_IDENTIFIER_GLOBAL_VALUE (sname, fn);
+      /* In LIPO mode make sure we record the new global value so that it
+         is cleared before parsing the next aux module.  */
+      if (L_IPO_COMP_MODE && !is_parsing_done_p ())
+        add_decl_to_current_module_scope (fn,
+                                          NAMESPACE_LEVEL (global_namespace));
     }
   return fn;
 }
@@ -3337,11 +3387,13 @@ start_static_storage_duration_function (unsigned count)
 {
   tree type;
   tree body;
-  char id[sizeof (SSDF_IDENTIFIER) + 1 /* '\0' */ + 32];
+  char id[sizeof (SSDF_IDENTIFIER) + 1 /* '\0' */ + 64];
 
   /* Create the identifier for this function.  It will be of the form
      SSDF_IDENTIFIER_<number>.  */
   sprintf (id, "%s_%u", SSDF_IDENTIFIER, count);
+  if (L_IPO_IS_AUXILIARY_MODULE)
+    sprintf (id, "%s.cmo.%u", id, current_module_id);
 
   type = build_function_type_list (void_type_node,
 				   integer_type_node, integer_type_node,
@@ -3567,7 +3619,7 @@ one_static_initialization_or_destruction (tree decl, tree init, bool initp)
 	  /* When using __cxa_atexit, we never try to destroy
 	     anything from a static destructor.  */
 	  gcc_assert (initp);
-	  guard_cond = get_guard_cond (guard);
+	  guard_cond = get_guard_cond (guard, false);
 	}
       /* If we don't have __cxa_atexit, then we will be running
 	 destructors from .fini sections, or their equivalents.  So,
@@ -3775,6 +3827,9 @@ prune_vars_needing_no_initialization (tree *vars)
 	  var = &TREE_CHAIN (t);
 	  continue;
 	}
+
+      gcc_assert (!L_IPO_IS_AUXILIARY_MODULE
+                  || varpool_is_auxiliary (varpool_node_for_decl (decl)));
 
       /* This variable is going to need initialization and/or
 	 finalization, so we add it to the list.  */
@@ -4141,6 +4196,23 @@ no_linkage_error (tree decl)
 	       "to declare function %q#D with linkage", t, decl);
 }
 
+/* Reset the parsing state for the next module.  */
+
+void
+cp_reset_parsing_state (void)
+{
+  vec_free (deferred_fns);
+  deferred_fns = NULL;
+  keyed_classes = NULL;
+  vec_free (no_linkage_decls);
+  no_linkage_decls = NULL;
+  cp_clear_constexpr_hashtable ();
+  clear_pending_templates ();
+  reset_anon_name ();
+  reset_temp_count ();
+  clear_lambda_scope ();
+}
+
 /* Collect declarations from all namespaces relevant to SOURCE_FILE.  */
 
 static void
@@ -4199,8 +4271,12 @@ handle_tls_init (void)
       one_static_initialization_or_destruction (var, init, true);
 
 #ifdef ASM_OUTPUT_DEF
-      /* Output init aliases even with -fno-extern-tls-init.  */
-      if (TREE_PUBLIC (var))
+      /* Output init aliases even with -fno-extern-tls-init.  Don't emit
+         aliases in LIPO aux modules, since the corresponding __tls_init
+         will be static promoted and deleted, so the variable's tls init
+         function will be resolved by its own primary module.  An alias
+         would prevent the promoted aux __tls_init from being deleted.  */
+      if (TREE_PUBLIC (var) && !L_IPO_IS_AUXILIARY_MODULE)
 	{
           tree single_init_fn = get_tls_init_fn (var);
 	  if (single_init_fn == NULL_TREE)
@@ -4269,68 +4345,15 @@ set_comdat (tree decl)
    first, since that way we only need to reverse the decls once.  */
 
 void
-cp_write_global_declarations (void)
+cp_process_pending_declarations (location_t locus)
 {
-  tree vars;
+  tree vars, decl;
   bool reconsider;
   size_t i;
-  location_t locus;
   unsigned ssdf_count = 0;
   int retries = 0;
-  tree decl;
-  struct pointer_set_t *candidates;
-
-  locus = input_location;
-  at_eof = 1;
-
-  /* Bad parse errors.  Just forget about it.  */
-  if (! global_bindings_p () || current_class_type
-      || !vec_safe_is_empty (decl_namespace_list))
-    return;
-
-  /* This is the point to write out a PCH if we're doing that.
-     In that case we do not want to do anything else.  */
-  if (pch_file)
-    {
-      c_common_write_pch ();
-      dump_tu ();
-      return;
-    }
-
-  cgraph_process_same_body_aliases ();
-
-  /* Handle -fdump-ada-spec[-slim] */
-  if (flag_dump_ada_spec || flag_dump_ada_spec_slim)
-    {
-      if (flag_dump_ada_spec_slim)
-	collect_source_ref (main_input_filename);
-      else
-	collect_source_refs (global_namespace);
-
-      dump_ada_specs (collect_all_refs, cpp_check);
-    }
-
-  /* FIXME - huh?  was  input_line -= 1;*/
 
   timevar_start (TV_PHASE_DEFERRED);
-
-  /* We now have to write out all the stuff we put off writing out.
-     These include:
-
-       o Template specializations that we have not yet instantiated,
-	 but which are needed.
-       o Initialization and destruction for non-local objects with
-	 static storage duration.  (Local objects with static storage
-	 duration are initialized when their scope is first entered,
-	 and are cleaned up via atexit.)
-       o Virtual function tables.
-
-     All of these may cause others to be needed.  For example,
-     instantiating one function may cause another to be needed, and
-     generating the initializer for an object may cause templates to be
-     instantiated, etc., etc.  */
-
-  emit_support_tinfos ();
 
   do
     {
@@ -4567,6 +4590,26 @@ cp_write_global_declarations (void)
     }
   while (reconsider);
 
+  if (L_IPO_IS_AUXILIARY_MODULE)
+    {
+      tree fndecl;
+      int i;
+
+      gcc_assert (flag_dyn_ipa && L_IPO_COMP_MODE);
+
+      /* Do some cleanup -- we do not really need static init function
+         to be created for auxiliary modules -- they are created to keep
+         funcdef_no consistent between profile use and profile gen.  */
+      FOR_EACH_VEC_SAFE_ELT (ssdf_decls, i, fndecl)
+        /* Such ssdf_decls are not called from GLOBAL ctor/dtor, mark
+	   them reachable to avoid being eliminated too early before
+	   gimplication.  */
+        cgraph_enqueue_node (cgraph_get_create_node (fndecl));
+      ssdf_decls = NULL;
+      timevar_stop (TV_PHASE_DEFERRED);
+      return;
+    }
+
   /* All used inline functions must have a definition at this point.  */
   FOR_EACH_VEC_SAFE_ELT (deferred_fns, i, decl)
     {
@@ -4618,7 +4661,10 @@ cp_write_global_declarations (void)
 
   /* We're done with the splay-tree now.  */
   if (priority_info_map)
-    splay_tree_delete (priority_info_map);
+    {
+      splay_tree_delete (priority_info_map);
+      priority_info_map = NULL;
+    }
 
   /* Generate any missing aliases.  */
   maybe_apply_pending_pragma_weaks ();
@@ -4627,10 +4673,78 @@ cp_write_global_declarations (void)
      linkage now.  */
   pop_lang_context ();
 
+  ssdf_decls = NULL;
+  timevar_stop (TV_PHASE_DEFERRED);
+}
+
+/* This routine is called at the end of compilation.
+   Its job is to create all the code needed to initialize and
+   destroy the global aggregates.  We do the destruction
+   first, since that way we only need to reverse the decls once.  */
+
+void
+cp_write_global_declarations (void)
+{
+  bool reconsider = false;
+  location_t locus;
+  struct pointer_set_t *candidates;
+  size_t i;
+  tree decl;
+
+  locus = input_location;
+  at_eof = 1;
+
+  /* Bad parse errors.  Just forget about it.  */
+  if (! global_bindings_p () || current_class_type
+      || !vec_safe_is_empty (decl_namespace_list))
+    return;
+
+  if (pch_file)
+    {
+      c_common_write_pch ();
+      return;
+    }
+
+  cgraph_process_same_body_aliases ();
+
+  /* Handle -fdump-ada-spec[-slim] */
+  if (flag_dump_ada_spec || flag_dump_ada_spec_slim)
+    {
+      if (flag_dump_ada_spec_slim)
+	collect_source_ref (main_input_filename);
+      else
+	collect_source_refs (global_namespace);
+
+      dump_ada_specs (collect_all_refs, cpp_check);
+    }
+
+  /* FIXME - huh?  was  input_line -= 1;*/
+
+  /* We now have to write out all the stuff we put off writing out.
+     These include:
+
+       o Template specializations that we have not yet instantiated,
+	 but which are needed.
+       o Initialization and destruction for non-local objects with
+	 static storage duration.  (Local objects with static storage
+	 duration are initialized when their scope is first entered,
+	 and are cleaned up via atexit.)
+       o Virtual function tables.
+
+     All of these may cause others to be needed.  For example,
+     instantiating one function may cause another to be needed, and
+     generating the initializer for an object may cause templates to be
+     instantiated, etc., etc.  */
+
+  emit_support_tinfos ();
+
+  if (!L_IPO_COMP_MODE)
+    cp_process_pending_declarations (locus);
+
   /* Collect candidates for Java hidden aliases.  */
   candidates = collect_candidates_for_java_method_aliases ();
 
-  timevar_stop (TV_PHASE_DEFERRED);
+
   timevar_start (TV_PHASE_OPT_GEN);
 
   if (flag_vtable_verify)

@@ -184,6 +184,18 @@ prepare_call_address (tree fndecl, rtx funexp, rtx static_chain_value,
 	       && targetm.small_register_classes_for_mode_p (FUNCTION_MODE))
 	      ? force_not_mem (memory_address (FUNCTION_MODE, funexp))
 	      : memory_address (FUNCTION_MODE, funexp));
+  else if (flag_pic
+	   && fndecl
+	   && TREE_CODE (fndecl) == FUNCTION_DECL
+	   && (!flag_plt
+	       || lookup_attribute ("noplt", DECL_ATTRIBUTES (fndecl)))
+	   && !targetm.binds_local_p (fndecl))
+    {
+      /* This is done only for PIC code.  There is no easy interface to force the
+	 function address into GOT for non-PIC case.  non-PIC case needs to be
+	 handled specially by the backend.  */
+      funexp = force_reg (Pmode, funexp);
+    }
   else if (! sibcallp)
     {
 #ifndef NO_FUNCTION_CSE
@@ -2958,8 +2970,9 @@ expand_call (tree exp, rtx target, int ignore)
 
       OK_DEFER_POP;
 
-      /* Perform stack alignment before the first push (the last arg).  */
-      if (argblock == 0
+      /* If we push args individually in reverse order, perform stack alignment
+	 before the first push (the last arg).  */
+      if (PUSH_ARGS_REVERSED && argblock == 0
           && adjusted_args_size.constant > reg_parm_stack_space
 	  && adjusted_args_size.constant != unadjusted_args_size)
 	{

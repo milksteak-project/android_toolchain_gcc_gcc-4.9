@@ -543,8 +543,8 @@
 	(gt:VEC_F (match_dup 2)
 		  (match_dup 1)))
    (set (match_dup 0)
-	(not:VEC_F (ior:VEC_F (match_dup 3)
-			      (match_dup 4))))]
+	(ior:VEC_F (match_dup 3)
+		   (match_dup 4)))]
   "
 {
   operands[3] = gen_reg_rtx (<MODE>mode);

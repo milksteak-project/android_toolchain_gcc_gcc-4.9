@@ -78,9 +78,11 @@ along with GCC; see the file COPYING3.  If not see
 #include "diagnostic.h"
 #include "dumpfile.h"
 #include "tree-pass.h"
+#include "cfgloop.h"
 #include "context.h"
 #include "pass_manager.h"
 #include "target-globals.h"
+#include "tree-vectorizer.h"
 
 static rtx legitimize_dllimport_symbol (rtx, bool);
 static rtx legitimize_pe_coff_extern_decl (rtx, bool);
@@ -1738,7 +1740,7 @@ struct processor_costs slm_cost = {
   1,					/* scalar load_cost.  */
   1,					/* scalar_store_cost.  */
   1,					/* vec_stmt_cost.  */
-  1,					/* vec_to_scalar_cost.  */
+  4,					/* vec_to_scalar_cost.  */
   1,					/* scalar_to_vec_cost.  */
   1,					/* vec_align_load_cost.  */
   2,					/* vec_unalign_load_cost.  */
@@ -1815,7 +1817,7 @@ struct processor_costs intel_cost = {
   1,					/* scalar load_cost.  */
   1,					/* scalar_store_cost.  */
   1,					/* vec_stmt_cost.  */
-  1,					/* vec_to_scalar_cost.  */
+  4,					/* vec_to_scalar_cost.  */
   1,					/* scalar_to_vec_cost.  */
   1,					/* vec_align_load_cost.  */
   2,					/* vec_unalign_load_cost.  */
@@ -3856,11 +3858,30 @@ ix86_option_override_internal (bool main_args_p,
         opts->x_target_flags |= MASK_NO_RED_ZONE;
     }
 
+  if (!global_options_set.x_flag_shrink_wrap_frame_pointer)
+    flag_shrink_wrap_frame_pointer = 1;
+
+  /* -fshrink-wrap-frame-pointer is an optimization based on
+     -fno-omit-frame-pointer mode, so it is only effective when
+     flag_omit_frame_pointer is false.
+     Frame pointer shrinkwrap may increase code size, so disable
+     it when optimize_size is true.  */
+  if (flag_omit_frame_pointer
+      || optimize == 0
+      || optimize_size)
+    flag_shrink_wrap_frame_pointer = 0;
+
+  /* If only no -mno-omit-leaf-frame-pointer is explicitly specified,
+     -fshrink_wrap_frame_pointer will enable omitting leaf frame
+     pointer by default.  */
+  if (flag_shrink_wrap_frame_pointer
+      && !(TARGET_OMIT_LEAF_FRAME_POINTER_P (opts_set->x_target_flags)
+	   && !TARGET_OMIT_LEAF_FRAME_POINTER_P (opts->x_target_flags)))
+    opts->x_target_flags |= MASK_OMIT_LEAF_FRAME_POINTER;
+
   /* Keep nonleaf frame pointers.  */
   if (opts->x_flag_omit_frame_pointer)
     opts->x_target_flags &= ~MASK_OMIT_LEAF_FRAME_POINTER;
-  else if (TARGET_OMIT_LEAF_FRAME_POINTER_P (opts->x_target_flags))
-    opts->x_flag_omit_frame_pointer = 1;
 
   /* If we're doing fast math, we don't care about comparison order
      wrt NaNs.  This lets us use a shorter comparison sequence.  */
@@ -5045,8 +5066,11 @@ ix86_in_large_data_p (tree exp)
       HOST_WIDE_INT size = int_size_in_bytes (TREE_TYPE (exp));
 
       /* If this is an incomplete type with size 0, then we can't put it
-	 in data because it might be too big when completed.  */
-      if (!size || size > ix86_section_threshold)
+	 in data because it might be too big when completed.  Also,
+	 int_size_in_bytes returns -1 if size can vary or is larger than
+	 an integer in which case also it is safer to assume that it goes in
+	 large data.  */
+      if (size <= 0 || size > ix86_section_threshold)
 	return true;
     }
 
@@ -9117,18 +9141,20 @@ ix86_frame_pointer_required (void)
   if (TARGET_64BIT_MS_ABI && get_frame_size () > SEH_MAX_FRAME_SIZE)
     return true;
 
-  /* In ix86_option_override_internal, TARGET_OMIT_LEAF_FRAME_POINTER
-     turns off the frame pointer by default.  Turn it back on now if
-     we've not got a leaf function.  */
-  if (TARGET_OMIT_LEAF_FRAME_POINTER
-      && (!crtl->is_leaf
-	  || ix86_current_function_calls_tls_descriptor))
-    return true;
-
   if (crtl->profile && !flag_fentry)
     return true;
 
   return false;
+}
+
+/* Return true if the frame pointer of the function could be omitted.  */
+
+static bool
+ix86_can_omit_leaf_frame_pointer (void)
+{
+  return TARGET_OMIT_LEAF_FRAME_POINTER
+	 && (crtl->is_leaf
+	     && !ix86_current_function_calls_tls_descriptor);
 }
 
 /* Record that the current function accesses previous call frames.  */
@@ -9613,7 +9639,7 @@ ix86_compute_frame_layout (struct ix86_frame *frame)
     offset += UNITS_PER_WORD;
 
   /* Skip saved base pointer.  */
-  if (frame_pointer_needed)
+  if (frame_pointer_needed || frame_pointer_partially_needed)
     offset += UNITS_PER_WORD;
   frame->hfp_save_offset = offset;
 
@@ -10936,6 +10962,26 @@ ix86_expand_prologue (void)
 	  m->fs.fp_valid = true;
 	}
     }
+  else if (frame_pointer_partially_needed)
+    {
+      insn = emit_insn (gen_push (hard_frame_pointer_rtx));
+      RTX_FRAME_RELATED_P (insn) = 1;
+      if (fpset_needed_in_prologue)
+	{
+	  insn = emit_move_insn (hard_frame_pointer_rtx, stack_pointer_rtx);
+	  /* Using sp as cfa_reg will involve more .cfi_def_cfa_offset for
+	     pushes in prologue, so use fp as cfa_reg to reduce .eh_frame
+	     size when possible.  */
+	  if (!any_fp_def)
+	    {
+	      RTX_FRAME_RELATED_P (insn) = 1;
+	      if (m->fs.cfa_reg == stack_pointer_rtx)
+		m->fs.cfa_reg = hard_frame_pointer_rtx;
+	      m->fs.fp_offset = m->fs.sp_offset;
+	      m->fs.fp_valid = true;
+	    }
+	}
+    }
 
   if (!int_registers_saved)
     {
@@ -11285,6 +11331,34 @@ ix86_expand_prologue (void)
     emit_insn (gen_prologue_use (stack_pointer_rtx));
 }
 
+/* Get frame pointer setting insn based on frame state.  */
+static rtx
+ix86_set_fp_insn ()
+{
+  rtx r, seq;
+  struct ix86_frame frame;
+  HOST_WIDE_INT offset;
+
+  ix86_compute_frame_layout (&frame);
+  gcc_assert (frame_pointer_partially_needed);
+  offset = frame.stack_pointer_offset - frame.hard_frame_pointer_offset; 
+
+  if (TARGET_64BIT && (offset > 0x7fffffff))
+    {
+      r = gen_rtx_SET (DImode, hard_frame_pointer_rtx, GEN_INT (offset));
+      emit_insn (r);
+      r = gen_rtx_PLUS (Pmode, hard_frame_pointer_rtx, stack_pointer_rtx);
+      r = gen_rtx_SET (VOIDmode, hard_frame_pointer_rtx, r);
+    }
+  else
+    {
+      r = gen_rtx_PLUS (Pmode, stack_pointer_rtx, GEN_INT (offset));
+      r = gen_rtx_SET (VOIDmode, hard_frame_pointer_rtx, r);
+    }
+  emit_insn (r);
+  return r;
+}
+
 /* Emit code to restore REG using a POP insn.  */
 
 static void
@@ -11469,7 +11543,11 @@ ix86_expand_epilogue (int style)
 	      || m->fs.sp_offset == frame.stack_pointer_offset);
 
   /* The FP must be valid if the frame pointer is present.  */
-  gcc_assert (frame_pointer_needed == m->fs.fp_valid);
+  if (!frame_pointer_partially_needed)
+    gcc_assert (frame_pointer_needed == m->fs.fp_valid);
+  else
+    gcc_assert (!(any_fp_def && m->fs.fp_valid));
+
   gcc_assert (!m->fs.fp_valid
 	      || m->fs.fp_offset == frame.hard_frame_pointer_offset);
 
@@ -11673,7 +11751,7 @@ ix86_expand_epilogue (int style)
 
   /* If we used a stack pointer and haven't already got rid of it,
      then do so now.  */
-  if (m->fs.fp_valid)
+  if (m->fs.fp_valid || frame_pointer_partially_needed)
     {
       /* If the stack pointer is valid and pointing at the frame
 	 pointer store address, then we only need a pop.  */
@@ -11681,15 +11759,20 @@ ix86_expand_epilogue (int style)
 	ix86_emit_restore_reg_using_pop (hard_frame_pointer_rtx);
       /* Leave results in shorter dependency chains on CPUs that are
 	 able to grok it fast.  */
-      else if (TARGET_USE_LEAVE
-	       || optimize_bb_for_size_p (EXIT_BLOCK_PTR_FOR_FN (cfun))
-	       || !cfun->machine->use_fast_prologue_epilogue)
+      else if (m->fs.fp_valid
+	       && (TARGET_USE_LEAVE
+		   || optimize_function_for_size_p (cfun)
+		   || !cfun->machine->use_fast_prologue_epilogue))
 	ix86_emit_leave ();
       else
         {
+	  rtx dest, offset;
+	  dest = (m->fs.fp_valid) ? hard_frame_pointer_rtx : stack_pointer_rtx;
+	  offset = (m->fs.fp_valid) ? const0_rtx :
+			GEN_INT (m->fs.sp_offset - frame.hfp_save_offset);
 	  pro_epilogue_adjust_stack (stack_pointer_rtx,
-				     hard_frame_pointer_rtx,
-				     const0_rtx, style, !using_drap);
+				     dest,
+				     offset, style, !using_drap);
 	  ix86_emit_restore_reg_using_pop (hard_frame_pointer_rtx);
         }
     }
@@ -11788,6 +11871,246 @@ ix86_expand_epilogue (int style)
   /* Restore the state back to the state from the prologue,
      so that it's correct for the next epilogue.  */
   m->fs = frame_state_save;
+}
+
+
+/* True if the current function should be patched with nops at prologue and
+   returns.  */
+static bool patch_current_function_p = false;
+
+static inline bool
+has_attribute (const char* attribute_name)
+{
+  return lookup_attribute (attribute_name,
+                           DECL_ATTRIBUTES (current_function_decl)) != NULL;
+}
+
+/* Return true if we patch the current function. By default a function
+   is patched if it has loops or if the number of insns is greater than
+   patch_functions_min_instructions (number of insns roughly translates
+   to number of instructions).  */
+
+static bool
+check_should_patch_current_function (void)
+{
+  int num_insns = 0;
+  rtx insn;
+  const char *func_name = NULL;
+  struct loops *loops;
+  int num_loops = 0;
+  int min_functions_instructions;
+
+  /* If a function has an attribute forcing patching on or off, do as it
+     indicates.  */
+  if (has_attribute ("always_patch_for_instrumentation"))
+    return true;
+  else if (has_attribute ("never_patch_for_instrumentation"))
+    return false;
+
+  /* Patch the function if it has at least a loop.  */
+  if (!patch_functions_ignore_loops)
+    {
+      if (DECL_STRUCT_FUNCTION (current_function_decl)->cfg)
+        {
+          loops = flow_loops_find (NULL);
+          num_loops = loops->larray->length();
+          /* FIXME - Deallocating the loop causes a seg-fault.  */
+#if 0
+          flow_loops_free (loops);
+#endif
+          /* We are not concerned with the function body as a loop.  */
+          if (num_loops > 1)
+            return true;
+        }
+    }
+
+  /* Else, check if function has more than patch_functions_min_instrctions.  */
+
+  /* Borrowed this code from rest_of_handle_final() in final.c.  */
+  func_name = XSTR (XEXP (DECL_RTL (current_function_decl), 0), 0);
+  if (!patch_functions_dont_always_patch_main &&
+      func_name &&
+      strcmp("main", func_name) == 0)
+    return true;
+
+  min_functions_instructions =
+      PARAM_VALUE (PARAM_FUNCTION_PATCH_MIN_INSTRUCTIONS);
+  if (min_functions_instructions > 0)
+    {
+      /* Calculate the number of instructions in this function and only emit
+         function patch for instrumentation if it is greater than
+         patch_functions_min_instructions.  */
+      for (insn = get_insns (); insn; insn = NEXT_INSN (insn))
+        {
+          if (NONDEBUG_INSN_P (insn))
+            ++num_insns;
+        }
+      if (num_insns < min_functions_instructions)
+        return false;
+    }
+
+  return true;
+}
+
+/* Emit the 11-byte patch space for the function prologue for functions that
+   qualify.  */
+
+static void
+ix86_output_function_prologue (FILE *file,
+                               HOST_WIDE_INT size ATTRIBUTE_UNUSED)
+{
+  /* Only for 64-bit target.  */
+  if (TARGET_64BIT && patch_functions_for_instrumentation)
+    {
+      patch_current_function_p = check_should_patch_current_function();
+      /* Emit the instruction 'jmp 09' followed by 9 bytes to make it 11-bytes
+         of nop.  */
+      ix86_output_function_nops_prologue_epilogue (
+          file,
+          FUNCTION_PATCH_PROLOGUE_SECTION,
+          ASM_BYTE"0xeb,0x09",
+          9);
+    }
+}
+
+/* Emit the nop bytes at function prologue or return (including tail call
+   jumps). The number of nop bytes generated is at least 8.
+   Also emits a section named SECTION_NAME, which is a backpointer section
+   holding the addresses of the nop bytes in the text section.
+   SECTION_NAME is either '_function_patch_prologue' or
+   '_function_patch_epilogue'. The backpointer section can be used to navigate
+   through all the function entry and exit points which are patched with nops.
+   PRE_INSTRUCTIONS are the instructions, if any, at the start of the nop byte
+   sequence. NUM_REMAINING_NOPS are the number of nop bytes to fill,
+   excluding the number of bytes in PRE_INSTRUCTIONS.
+   Returns true if the function was patched, false otherwise.  */
+
+bool
+ix86_output_function_nops_prologue_epilogue (FILE *file,
+                                             const char *section_name,
+                                             const char *pre_instructions,
+                                             int num_remaining_nops)
+{
+  static int labelno = 0;
+  char label[32], section_label[32];
+  section *section = NULL;
+  int num_actual_nops = num_remaining_nops - sizeof(void *);
+  unsigned int section_flags = SECTION_RELRO;
+  char *section_name_comdat = NULL;
+  const char *decl_section_name = NULL;
+  const char *func_name = NULL;
+  char *section_name_function_sections = NULL;
+  size_t len;
+
+  gcc_assert (num_remaining_nops >= 0);
+
+  if (!patch_current_function_p)
+    return false;
+
+  ASM_GENERATE_INTERNAL_LABEL (label, "LFPEL", labelno);
+  ASM_GENERATE_INTERNAL_LABEL (section_label, "LFPESL", labelno++);
+
+  /* Align the start of nops to 2-byte boundary so that the 2-byte jump
+     instruction can be patched atomically at run time.  */
+  ASM_OUTPUT_ALIGN (file, 1);
+
+  /* Emit nop bytes. They look like the following:
+       $LFPEL0:
+         <pre_instruction>
+         0x90 (repeated num_actual_nops times)
+         .quad $LFPESL0 - .
+     followed by section 'section_name' which contains the address
+     of instruction at 'label'.
+   */
+  ASM_OUTPUT_INTERNAL_LABEL (file, label);
+  if (pre_instructions)
+    fprintf (file, "%s\n", pre_instructions);
+
+  while (num_actual_nops-- > 0)
+    asm_fprintf (file, ASM_BYTE"0x90\n");
+
+  fprintf (file, ASM_QUAD);
+  /* Output "section_label - ." for the relative address of the entry in
+     the section 'section_name'.  */
+  assemble_name_raw (file, section_label);
+  fprintf (file, " - .");
+  fprintf (file, "\n");
+
+  /* Emit the backpointer section. For functions belonging to comdat group,
+     we emit a different section named '<section_name>.foo' where 'foo' is
+     the name of the comdat section. This section is later renamed to
+     '<section_name>' by ix86_elf_asm_named_section().
+     We emit a unique section name for the back pointer section for comdat
+     functions because otherwise the 'get_section' call may return an existing
+     non-comdat section with the same name, leading to references from
+     non-comdat section to comdat functions.
+  */
+  if (current_function_decl != NULL_TREE &&
+      DECL_ONE_ONLY (current_function_decl) &&
+      HAVE_COMDAT_GROUP)
+    {
+      decl_section_name =
+          TREE_STRING_POINTER (DECL_SECTION_NAME (current_function_decl));
+      len = strlen (decl_section_name) + strlen (section_name) + 2;
+      section_name_comdat = (char *) alloca (len);
+      sprintf (section_name_comdat, "%s.%s", section_name, decl_section_name);
+      section_name = section_name_comdat;
+      section_flags |= SECTION_LINKONCE;
+    }
+  else if (flag_function_sections)
+    {
+      func_name = XSTR (XEXP (DECL_RTL (current_function_decl), 0), 0);
+      if (func_name)
+        {
+          len = strlen (func_name) + strlen (section_name) + 2;
+          section_name_function_sections = (char *) alloca (len);
+          sprintf (section_name_function_sections, "%s.%s", section_name,
+                   func_name);
+          section_name = section_name_function_sections;
+        }
+    }
+  section = get_section (section_name, section_flags, current_function_decl);
+  switch_to_section (section);
+  /* Align the section to 8-byte boundary.  */
+  ASM_OUTPUT_ALIGN (file, 3);
+
+  /* Emit address of the start of nop bytes in the section:
+       $LFPESP0:
+         .quad $LFPEL0
+   */
+  ASM_OUTPUT_INTERNAL_LABEL (file, section_label);
+  fprintf(file, ASM_QUAD);
+  assemble_name_raw (file, label);
+  fprintf (file, "\n");
+
+  /* Switching back to text section.  */
+  switch_to_section (current_function_section ());
+  return true;
+}
+
+/* Strips the characters after '_function_patch_prologue' or
+   '_function_patch_epilogue' and emits the section.  */
+
+static void
+ix86_elf_asm_named_section (const char *name, unsigned int flags,
+                            tree decl)
+{
+  const char *section_name = name;
+  if (!flag_function_sections && HAVE_COMDAT_GROUP && flags & SECTION_LINKONCE)
+    {
+      const int prologue_section_name_length =
+          sizeof(FUNCTION_PATCH_PROLOGUE_SECTION) - 1;
+      const int epilogue_section_name_length =
+          sizeof(FUNCTION_PATCH_EPILOGUE_SECTION) - 1;
+
+      if (strncmp (name, FUNCTION_PATCH_PROLOGUE_SECTION,
+                   prologue_section_name_length) == 0)
+        section_name = FUNCTION_PATCH_PROLOGUE_SECTION;
+      else if (strncmp (name, FUNCTION_PATCH_EPILOGUE_SECTION,
+                        epilogue_section_name_length) == 0)
+        section_name = FUNCTION_PATCH_EPILOGUE_SECTION;
+    }
+  default_elf_asm_named_section (section_name, flags, decl);
 }
 
 /* Reset from the function's potential modifications.  */
@@ -12719,7 +13042,17 @@ legitimate_pic_address_disp_p (rtx disp)
 		return true;
 	    }
 	  else if (!SYMBOL_REF_FAR_ADDR_P (op0)
-		   && SYMBOL_REF_LOCAL_P (op0)
+		   && (SYMBOL_REF_LOCAL_P (op0)
+		       || (HAVE_LD_PIE_COPYRELOC
+			   && flag_pie
+			   && !(SYMBOL_REF_WEAK (op0)
+		  /* TODO:Temporary fix for weak defined symbols. Weak defined
+		     symbols in an executable cannot be overridden even with
+		     a non-weak symbol in a shared library.
+		     Revert after fix is checked in here:
+		     http://gcc.gnu.org/ml/gcc-patches/2015-02/msg00366.html*/
+				&& SYMBOL_REF_EXTERNAL_P (op0))
+			   && !SYMBOL_REF_FUNCTION_P (op0)))
 		   && ix86_cmodel != CM_LARGE_PIC)
 	    return true;
 	  break;
@@ -24986,13 +25319,19 @@ ix86_expand_call (rtx retval, rtx fnaddr, rtx callarg1,
     }
   else
     {
-      /* Static functions and indirect calls don't need the pic register.  */
+      /* Static functions and indirect calls don't need the pic register.  Also,
+	 check if PLT was explicitly avoided via no-plt or "noplt" attribute, making
+	 it an indirect call.  */
       if (flag_pic
 	  && (!TARGET_64BIT
 	      || (ix86_cmodel == CM_LARGE_PIC
 		  && DEFAULT_ABI != MS_ABI))
 	  && GET_CODE (XEXP (fnaddr, 0)) == SYMBOL_REF
-	  && ! SYMBOL_REF_LOCAL_P (XEXP (fnaddr, 0)))
+	  && !SYMBOL_REF_LOCAL_P (XEXP (fnaddr, 0))
+	  && flag_plt
+	  && (SYMBOL_REF_DECL ((XEXP (fnaddr, 0))) == NULL_TREE
+	      || !lookup_attribute ("noplt",
+		     DECL_ATTRIBUTES (SYMBOL_REF_DECL (XEXP (fnaddr, 0))))))
 	use_reg (&use, pic_offset_table_rtx);
     }
 
@@ -25056,6 +25395,31 @@ ix86_expand_call (rtx retval, rtx fnaddr, rtx callarg1,
   return call;
 }
 
+/* Return true if the function being called was marked with attribute "noplt"
+   or using -fno-plt and we are compiling for non-PIC and x86_64.  We need to
+   handle the non-PIC case in the backend because there is no easy interface
+   for the front-end to force non-PLT calls to use the GOT.  This is currently
+   used only with 64-bit ELF targets to call the function marked "noplt"
+   indirectly.  */
+
+static bool
+ix86_nopic_noplt_attribute_p (rtx call_op)
+{
+  if (flag_pic || ix86_cmodel == CM_LARGE
+      || !TARGET_64BIT || TARGET_MACHO || TARGET_SEH || TARGET_PECOFF
+      || SYMBOL_REF_LOCAL_P (call_op))
+    return false;
+
+  tree symbol_decl = SYMBOL_REF_DECL (call_op);
+
+  if (!flag_plt
+      || (symbol_decl != NULL_TREE
+          && lookup_attribute ("noplt", DECL_ATTRIBUTES (symbol_decl))))
+    return true;
+
+  return false;
+}
+
 /* Output the assembly for a call instruction.  */
 
 const char *
@@ -25067,7 +25431,9 @@ ix86_output_call_insn (rtx insn, rtx call_op)
 
   if (SIBLING_CALL_P (insn))
     {
-      if (direct_p)
+      if (direct_p && ix86_nopic_noplt_attribute_p (call_op))
+	xasm = "jmp\t*%p0@GOTPCREL(%%rip)";
+      else if (direct_p)
 	xasm = "jmp\t%P0";
       /* SEH epilogue detection requires the indirect branch case
 	 to include REX.W.  */
@@ -25075,6 +25441,15 @@ ix86_output_call_insn (rtx insn, rtx call_op)
 	xasm = "rex.W jmp %A0";
       else
 	xasm = "jmp\t%A0";
+
+      /* Just before the sibling call, add 11-bytes of nops to patch function
+         exit: 2 bytes for 'jmp 09' and remaining 9 bytes.  */
+      if (TARGET_64BIT && patch_functions_for_instrumentation)
+        ix86_output_function_nops_prologue_epilogue (
+            asm_out_file,
+            FUNCTION_PATCH_EPILOGUE_SECTION,
+            ASM_BYTE"0xeb, 0x09",
+            9);
 
       output_asm_insn (xasm, &call_op);
       return "";
@@ -25110,7 +25485,9 @@ ix86_output_call_insn (rtx insn, rtx call_op)
 	seh_nop_p = true;
     }
 
-  if (direct_p)
+  if (direct_p && ix86_nopic_noplt_attribute_p (call_op))
+    xasm = "call\t*%p0@GOTPCREL(%%rip)";
+  else if (direct_p)
     xasm = "call\t%P0";
   else
     xasm = "call\t%A0";
@@ -28929,7 +29306,8 @@ def_builtin (HOST_WIDE_INT mask, const char *name,
       ix86_builtins_isa[(int) code].isa = mask;
 
       mask &= ~OPTION_MASK_ISA_64BIT;
-      if (mask == 0
+      if (flag_dyn_ipa
+	  || mask == 0
 	  || (mask & ix86_isa_flags) != 0
 	  || (lang_hooks.builtin_function
 	      == lang_hooks.builtin_function_ext_scope))
@@ -44134,6 +44512,127 @@ expand_vec_perm_vpshufb2_vpermq_even_odd (struct expand_vec_perm_d *d)
   return true;
 }
 
+/* A subroutine of expand_vec_perm_even_odd_1.  Implement extract-even
+   and extract-odd permutations of two V16QI, V8HI, V16HI or V32QI operands
+   with two "and" and "pack" or two "shift" and "pack" insns.  We should
+   have already failed all two instruction sequences.  */
+
+static bool
+expand_vec_perm_even_odd_pack (struct expand_vec_perm_d *d)
+{
+  rtx op, dop0, dop1, t, rperm[16];
+  unsigned i, odd, c, s, nelt = d->nelt;
+  bool end_perm = false;
+  machine_mode half_mode;
+  rtx (*gen_and) (rtx, rtx, rtx);
+  rtx (*gen_pack) (rtx, rtx, rtx);
+  rtx (*gen_shift) (rtx, rtx, rtx);
+
+  if (d->one_operand_p)
+    return false;
+
+  switch (d->vmode)
+    {
+    case V8HImode:
+      /* Required for "pack".  */
+      if (!TARGET_SSE4_1)
+        return false;
+      c = 0xffff;
+      s = 16;
+      half_mode = V4SImode;
+      gen_and = gen_andv4si3;
+      gen_pack = gen_sse4_1_packusdw;
+      gen_shift = gen_lshrv4si3;
+      break;
+    case V16QImode:
+      /* No check as all instructions are SSE2.  */
+      c = 0xff;
+      s = 8;
+      half_mode = V8HImode;
+      gen_and = gen_andv8hi3;
+      gen_pack = gen_sse2_packuswb;
+      gen_shift = gen_lshrv8hi3;
+      break;
+    case V16HImode:
+      if (!TARGET_AVX2)
+        return false;
+      c = 0xffff;
+      s = 16;
+      half_mode = V8SImode;
+      gen_and = gen_andv8si3;
+      gen_pack = gen_avx2_packusdw;
+      gen_shift = gen_lshrv8si3;
+      end_perm = true;
+      break;
+    case V32QImode:
+      if (!TARGET_AVX2)
+        return false;
+      c = 0xff;
+      s = 8;
+      half_mode = V16HImode;
+      gen_and = gen_andv16hi3;
+      gen_pack = gen_avx2_packuswb;
+      gen_shift = gen_lshrv16hi3;
+      end_perm = true;
+      break;
+    default:
+      /* Only V8HI, V16QI, V16HI and V32QI modes are more profitable than
+	 general shuffles.  */
+      return false;
+    }
+
+  /* Check that permutation is even or odd.  */
+  odd = d->perm[0];
+  if (odd > 1)
+    return false;
+
+  for (i = 1; i < nelt; ++i)
+    if (d->perm[i] != 2 * i + odd)
+      return false;
+
+  if (d->testing_p)
+    return true;
+
+  dop0 = gen_reg_rtx (half_mode);
+  dop1 = gen_reg_rtx (half_mode);
+  if (odd == 0)
+    {
+      for (i = 0; i < nelt / 2; i++)
+	rperm[i] = GEN_INT (c);
+      t = gen_rtx_CONST_VECTOR (half_mode, gen_rtvec_v (nelt / 2, rperm));
+      t = force_reg (half_mode, t);
+      emit_insn (gen_and (dop0, t, gen_lowpart (half_mode, d->op0)));
+      emit_insn (gen_and (dop1, t, gen_lowpart (half_mode, d->op1)));
+    }
+  else
+    {
+      emit_insn (gen_shift (dop0,
+			    gen_lowpart (half_mode, d->op0),
+			    GEN_INT (s)));
+      emit_insn (gen_shift (dop1,
+			    gen_lowpart (half_mode, d->op1),
+			    GEN_INT (s)));
+    }
+  /* In AVX2 for 256 bit case we need to permute pack result.  */
+  if (TARGET_AVX2 && end_perm)
+    {
+      op = gen_reg_rtx (d->vmode);
+      t = gen_reg_rtx (V4DImode);
+      emit_insn (gen_pack (op, dop0, dop1));
+      emit_insn (gen_avx2_permv4di_1 (t,
+				      gen_lowpart (V4DImode, op),
+				      const0_rtx,
+				      const2_rtx,
+				      const1_rtx,
+				      GEN_INT (3)));
+      emit_move_insn (d->target, gen_lowpart (d->vmode, t));
+    }
+  else
+    emit_insn (gen_pack (d->target, dop0, dop1));
+
+  return true;
+}
+
 /* A subroutine of ix86_expand_vec_perm_builtin_1.  Implement extract-even
    and extract-odd permutations.  */
 
@@ -44205,7 +44704,9 @@ expand_vec_perm_even_odd_1 (struct expand_vec_perm_d *d, unsigned odd)
       gcc_unreachable ();
 
     case V8HImode:
-      if (TARGET_SSSE3)
+      if (TARGET_SSE4_1)
+	return expand_vec_perm_even_odd_pack (d);
+      else if (TARGET_SSSE3 && !TARGET_SLOW_PSHUFB)
 	return expand_vec_perm_pshufb2 (d);
       else
 	{
@@ -44228,32 +44729,11 @@ expand_vec_perm_even_odd_1 (struct expand_vec_perm_d *d, unsigned odd)
       break;
 
     case V16QImode:
-      if (TARGET_SSSE3)
-	return expand_vec_perm_pshufb2 (d);
-      else
-	{
-	  if (d->testing_p)
-	    break;
-	  t1 = gen_reg_rtx (V16QImode);
-	  t2 = gen_reg_rtx (V16QImode);
-	  t3 = gen_reg_rtx (V16QImode);
-	  emit_insn (gen_vec_interleave_highv16qi (t1, d->op0, d->op1));
-	  emit_insn (gen_vec_interleave_lowv16qi (d->target, d->op0, d->op1));
-	  emit_insn (gen_vec_interleave_highv16qi (t2, d->target, t1));
-	  emit_insn (gen_vec_interleave_lowv16qi (d->target, d->target, t1));
-	  emit_insn (gen_vec_interleave_highv16qi (t3, d->target, t2));
-	  emit_insn (gen_vec_interleave_lowv16qi (d->target, d->target, t2));
-	  if (odd)
-	    t3 = gen_vec_interleave_highv16qi (d->target, d->target, t3);
-	  else
-	    t3 = gen_vec_interleave_lowv16qi (d->target, d->target, t3);
-	  emit_insn (t3);
-	}
-      break;
+      return expand_vec_perm_even_odd_pack (d);
 
     case V16HImode:
     case V32QImode:
-      return expand_vec_perm_vpshufb2_vpermq_even_odd (d);
+      return expand_vec_perm_even_odd_pack (d);
 
     case V4DImode:
       if (!TARGET_AVX2)
@@ -44622,6 +45102,9 @@ ix86_expand_vec_perm_const_1 (struct expand_vec_perm_d *d)
     return true;
 
   /* Try sequences of three instructions.  */
+
+  if (expand_vec_perm_even_odd_pack (d))
+    return true;
 
   if (expand_vec_perm_2vperm2f128_vshuf (d))
     return true;
@@ -46409,6 +46892,16 @@ ix86_reassociation_width (unsigned int opc ATTRIBUTE_UNUSED,
 {
   int res = 1;
 
+  /* Vector part.  */
+  if (VECTOR_MODE_P (mode))
+    {
+      if (TARGET_VECTOR_PARALLEL_EXECUTION)
+	return 2;
+      else
+	return 1;
+    }
+
+  /* Scalar part.  */
   if (INTEGRAL_MODE_P (mode) && TARGET_REASSOC_INT_TO_PARALLEL)
     res = 2;
   else if (FLOAT_MODE_P (mode) && TARGET_REASSOC_FP_TO_PARALLEL)
@@ -46508,7 +47001,6 @@ ix86_add_stmt_cost (void *data, int count, enum vect_cost_for_stmt kind,
 {
   unsigned *cost = (unsigned *) data;
   unsigned retval = 0;
-
   tree vectype = stmt_info ? stmt_vectype (stmt_info) : NULL_TREE;
   int stmt_cost = ix86_builtin_vectorization_cost (kind, vectype, misalign);
 
@@ -46519,6 +47011,18 @@ ix86_add_stmt_cost (void *data, int count, enum vect_cost_for_stmt kind,
     count *= 50;  /* FIXME.  */
 
   retval = (unsigned) (count * stmt_cost);
+
+  /* We need to multiply all vector stmt cost by 1.7 (estimated cost)
+     for Silvermont as it has out of order integer pipeline and can execute
+     2 scalar instruction per tick, but has in order SIMD pipeline.  */
+  if (TARGET_SILVERMONT || TARGET_INTEL)
+    if (stmt_info && stmt_info->stmt)
+      {
+	tree lhs_op = gimple_get_lhs (stmt_info->stmt);
+	if (lhs_op && TREE_CODE (TREE_TYPE (lhs_op)) == INTEGER_TYPE)
+	  retval = (retval * 17) / 10;
+      }
+
   cost[where] += retval;
 
   return retval;
@@ -46921,6 +47425,70 @@ ix86_atomic_assign_expand_fenv (tree *hold, tree *clear, tree *update)
 		    atomic_feraiseexcept_call);
 }
 
+/* Try to determine BASE/OFFSET/SIZE parts of the given MEM.
+   Return true if successful, false if all the values couldn't
+   be determined.
+
+   This function only looks for REG/SYMBOL or REG/SYMBOL+CONST
+   address forms. */
+
+static bool
+get_memref_parts (rtx mem, rtx *base, HOST_WIDE_INT *offset,
+		  HOST_WIDE_INT *size)
+{
+  rtx addr_rtx;
+  if MEM_SIZE_KNOWN_P (mem)
+    *size = MEM_SIZE (mem);
+  else
+    return false;
+
+  if (GET_CODE (XEXP (mem, 0)) == CONST)
+    addr_rtx = XEXP (XEXP (mem, 0), 0);
+  else
+    addr_rtx = (XEXP (mem, 0));
+
+  if (GET_CODE (addr_rtx) == REG
+      || GET_CODE (addr_rtx) == SYMBOL_REF)
+    {
+      *base = addr_rtx;
+      *offset = 0;
+    }
+  else if (GET_CODE (addr_rtx) == PLUS
+	   && CONST_INT_P (XEXP (addr_rtx, 1)))
+    {
+      *base = XEXP (addr_rtx, 0);
+      *offset = INTVAL (XEXP (addr_rtx, 1));
+    }
+  else
+    return false;
+
+  return true;
+}
+
+/* If MEM1 is adjacent to MEM2 and MEM1 has lower address,
+   return true.  */
+
+extern bool
+adjacent_mem_locations (rtx mem1, rtx mem2)
+{
+  rtx base1, base2;
+  HOST_WIDE_INT off1, size1, off2, size2;
+
+  if (get_memref_parts (mem1, &base1, &off1, &size1)
+      && get_memref_parts (mem2, &base2, &off2, &size2))
+    {
+      if (GET_CODE (base1) == SYMBOL_REF
+	  && GET_CODE (base2) == SYMBOL_REF
+	  && SYMBOL_REF_DECL (base1) == SYMBOL_REF_DECL (base2))
+        return (off1 + size1 == off2);
+      else if (REG_P (base1)
+	       && REG_P (base2)
+	       && REGNO (base1) == REGNO (base2))
+        return (off1 + size1 == off2);
+    }
+  return false;
+}
+
 /* Initialize the GCC target structure.  */
 #undef TARGET_RETURN_IN_MEMORY
 #define TARGET_RETURN_IN_MEMORY ix86_return_in_memory
@@ -46963,8 +47531,14 @@ ix86_atomic_assign_expand_fenv (tree *hold, tree *clear, tree *update)
 #undef TARGET_BUILTIN_RECIPROCAL
 #define TARGET_BUILTIN_RECIPROCAL ix86_builtin_reciprocal
 
+#undef TARGET_ASM_FUNCTION_PROLOGUE
+#define TARGET_ASM_FUNCTION_PROLOGUE ix86_output_function_prologue
+
 #undef TARGET_ASM_FUNCTION_EPILOGUE
 #define TARGET_ASM_FUNCTION_EPILOGUE ix86_output_function_epilogue
+
+#undef TARGET_ASM_NAMED_SECTION
+#define TARGET_ASM_NAMED_SECTION ix86_elf_asm_named_section
 
 #undef TARGET_ENCODE_SECTION_INFO
 #ifndef SUBTARGET_ENCODE_SECTION_INFO
@@ -46992,6 +47566,9 @@ ix86_atomic_assign_expand_fenv (tree *hold, tree *clear, tree *update)
 
 #undef TARGET_PROFILE_BEFORE_PROLOGUE
 #define TARGET_PROFILE_BEFORE_PROLOGUE ix86_profile_before_prologue
+
+#undef TARGET_SET_FP_INSN
+#define TARGET_SET_FP_INSN ix86_set_fp_insn
 
 #undef TARGET_MANGLE_DECL_ASSEMBLER_NAME
 #define TARGET_MANGLE_DECL_ASSEMBLER_NAME ix86_mangle_decl_assembler_name
@@ -47278,6 +47855,9 @@ ix86_atomic_assign_expand_fenv (tree *hold, tree *clear, tree *update)
 #undef TARGET_FRAME_POINTER_REQUIRED
 #define TARGET_FRAME_POINTER_REQUIRED ix86_frame_pointer_required
 
+#undef TARGET_CAN_OMIT_LEAF_FRAME_POINTER
+#define TARGET_CAN_OMIT_LEAF_FRAME_POINTER ix86_can_omit_leaf_frame_pointer
+
 #undef TARGET_CAN_ELIMINATE
 #define TARGET_CAN_ELIMINATE ix86_can_eliminate
 
@@ -47317,6 +47897,8 @@ ix86_atomic_assign_expand_fenv (tree *hold, tree *clear, tree *update)
 #define TARGET_FLOAT_EXCEPTIONS_ROUNDING_SUPPORTED_P \
   ix86_float_exceptions_rounding_supported_p
 
+#undef TARGET_STRICT_ALIGN
+#define TARGET_STRICT_ALIGN true
 struct gcc_target targetm = TARGET_INITIALIZER;
 
 #include "gt-i386.h"

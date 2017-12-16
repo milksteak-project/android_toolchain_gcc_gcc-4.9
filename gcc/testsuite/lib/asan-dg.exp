@@ -17,10 +17,28 @@
 # Return 1 if compilation with -fsanitize=address is error-free for trivial
 # code, 0 otherwise.
 
+# Google-local: Disable ASAN tests; we don't use GCC asan, and these
+# tests all fail due to ulimits in our test environment.
 proc check_effective_target_faddress_sanitizer {} {
-    return [check_no_compiler_messages faddress_sanitizer object {
-	void foo (void) { }
-    } "-fsanitize=address"]
+    # return [check_no_compiler_messages faddress_sanitizer object {
+    #	void foo (void) { }
+    # } "-fsanitize=address"]
+    return 0
+}
+
+proc asan_include_flags {} {
+    global srcdir
+    global TESTING_IN_BUILD_TREE
+
+    set flags ""
+
+    if { [is_remote host] || ! [info exists TESTING_IN_BUILD_TREE] } {
+      return "${flags}"
+    }
+
+    set flags "-I$srcdir/../../libsanitizer/include"
+
+    return "$flags"
 }
 
 proc asan_include_flags {} {
@@ -102,12 +120,12 @@ proc asan_init { args } {
     }
     if [info exists ALWAYS_CXXFLAGS] {
 	set ALWAYS_CXXFLAGS [concat "{ldflags=$link_flags}" $ALWAYS_CXXFLAGS]
-	set ALWAYS_CXXFLAGS [concat "{additional_flags=-fsanitize=address -g $include_flags}" $ALWAYS_CXXFLAGS]
+	set ALWAYS_CXXFLAGS [concat "{additional_flags=-fsanitize=address -static-libasan -g $include_flags}" $ALWAYS_CXXFLAGS]
     } else {
 	if [info exists TEST_ALWAYS_FLAGS] {
-	    set TEST_ALWAYS_FLAGS "$link_flags -fsanitize=address -g $include_flags $TEST_ALWAYS_FLAGS"
+	    set TEST_ALWAYS_FLAGS "$link_flags -fsanitize=address  -static-libasan -g $include_flags $TEST_ALWAYS_FLAGS"
 	} else {
-	    set TEST_ALWAYS_FLAGS "$link_flags -fsanitize=address -g $include_flags"
+	    set TEST_ALWAYS_FLAGS "$link_flags -fsanitize=address -static-libasan -g $include_flags"
 	}
     }
     if { $link_flags != "" } {

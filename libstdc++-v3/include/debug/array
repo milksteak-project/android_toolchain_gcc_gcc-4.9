@@ -35,6 +35,13 @@
 
 namespace std _GLIBCXX_VISIBILITY(default)
 {
+  template<typename _Tp>
+    struct __google_is_nothrow_swappable
+    {
+      static const bool value =
+        noexcept(swap(std::declval<_Tp&>(), std::declval<_Tp&>()));
+    };
+
 namespace __debug
 {
   template<typename _Tp, std::size_t _Nm>
@@ -83,7 +90,7 @@ namespace __debug
 
       void
       swap(array& __other)
-      noexcept(noexcept(swap(std::declval<_Tp&>(), std::declval<_Tp&>())))
+      noexcept(__google_is_nothrow_swappable<_Tp>::value)
       { std::swap_ranges(begin(), end(), __other.begin()); }
 
       // Iterators.

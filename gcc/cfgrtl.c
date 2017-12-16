@@ -1453,7 +1453,24 @@ emit_barrier_after_bb (basic_block bb)
   gcc_assert (current_ir_type () == IR_RTL_CFGRTL
               || current_ir_type () == IR_RTL_CFGLAYOUT);
   if (current_ir_type () == IR_RTL_CFGLAYOUT)
-    BB_FOOTER (bb) = unlink_insn_chain (barrier, barrier);
+    {
+      rtx insn = unlink_insn_chain (barrier, barrier);
+
+      if (BB_FOOTER (bb))
+        { 
+          rtx footer_tail = BB_FOOTER (bb);
+
+          while (NEXT_INSN (footer_tail))
+            footer_tail = NEXT_INSN (footer_tail);
+          if (!BARRIER_P (footer_tail))
+            {
+              NEXT_INSN (footer_tail) = insn;
+              PREV_INSN (insn) = footer_tail;
+            }
+        }
+      else
+        BB_FOOTER (bb) = insn;
+    }
 }
 
 /* Like force_nonfallthru below, but additionally performs redirection
@@ -2496,7 +2513,8 @@ rtl_verify_edges (void)
 			    | EDGE_IRREDUCIBLE_LOOP
 			    | EDGE_LOOP_EXIT
 			    | EDGE_CROSSING
-			    | EDGE_PRESERVE)) == 0)
+			    | EDGE_PRESERVE
+			    | EDGE_PREDICTED_BY_EXPECT)) == 0)
 	    n_branch++;
 
 	  if (e->flags & EDGE_ABNORMAL_CALL)

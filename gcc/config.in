@@ -45,6 +45,12 @@
 #endif
 
 
+/* Define to enable prefix canonicalization. */
+#ifndef USED_FOR_TARGET
+#undef ENABLE_CANONICAL_PREFIXES
+#endif
+
+
 /* Define if you want more run-time sanity checks. This one gets a grab bag of
    miscellaneous but relatively cheap checks. */
 #ifndef USED_FOR_TARGET
@@ -456,6 +462,12 @@
 /* Define if the assembler understands -mnan=. */
 #ifndef USED_FOR_TARGET
 #undef HAVE_AS_NAN
+#endif
+
+
+/* Define if the assembler understands .module. */
+#ifndef USED_FOR_TARGET
+#undef HAVE_AS_DOT_MODULE
 #endif
 
 
@@ -1345,6 +1357,12 @@
 #endif
 
 
+/* Define 0/1 if your linker supports -pie option with copy reloc. */
+#ifndef USED_FOR_TARGET
+#undef HAVE_LD_PIE_COPYRELOC
+#endif
+
+
 /* Define if your linker links a mix of read-only and read-write sections into
    a read-write section. */
 #ifndef USED_FOR_TARGET
@@ -1745,6 +1763,11 @@
 #undef LINKER_HASH_STYLE
 #endif
 
+/* Define to the name of the function reordering plugin DSO that must be
+   passed to the linker's -plugin=LIB option. */
+#ifndef USED_FOR_TARGET
+#undef FRPLUGINSONAME
+#endif
 
 /* Define to the name of the LTO plugin DSO that must be passed to the
    linker's -plugin=LIB option. */
@@ -1909,6 +1932,12 @@
 #endif
 
 
+/* Define if your system supports PT_GNU_EH_FRAME for static executable. */
+#ifndef USED_FOR_TARGET
+#undef USE_EH_FRAME_HDR_FOR_STATIC
+#endif
+
+
 /* Define to 1 if the 'long long' (or '__int64') is wider than 'long' but
    still efficiently supported by the host hardware. */
 #ifndef USED_FOR_TARGET
@@ -1941,6 +1970,12 @@
 /* Enable general extensions on Solaris.  */
 #ifndef __EXTENSIONS__
 # undef __EXTENSIONS__
+#endif
+
+
+/* Define to be extra text for frame size warnings. */
+#ifndef USED_FOR_TARGET
+#undef WARN_FRAME_LARGER_THAN_EXTRA_TEXT
 #endif
 
 

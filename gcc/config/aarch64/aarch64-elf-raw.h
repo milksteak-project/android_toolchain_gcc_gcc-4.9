@@ -43,6 +43,22 @@
   " %{mfix-cortex-a53-843419:--fix-cortex-a53-843419}"
 #endif
 
+#ifdef TARGET_FIX_ERR_A53_835769_DEFAULT
+#define CA53_ERR_835769_SPEC \
+  " %{!mno-fix-cortex-a53-835769:--fix-cortex-a53-835769}"
+#else
+#define CA53_ERR_835769_SPEC \
+  " %{mfix-cortex-a53-835769:--fix-cortex-a53-835769}"
+#endif
+
+#ifdef TARGET_FIX_ERR_A53_843419_DEFAULT
+#define CA53_ERR_843419_SPEC \
+  " %{!mno-fix-cortex-a53-843419:--fix-cortex-a53-843419}"
+#else
+#define CA53_ERR_843419_SPEC \
+  " %{mfix-cortex-a53-843419:--fix-cortex-a53-843419}"
+#endif
+
 #ifndef LINK_SPEC
 #define LINK_SPEC "%{h*}			\
    %{static:-Bstatic}				\

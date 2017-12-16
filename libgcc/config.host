@@ -816,8 +816,10 @@ mips*-sde-elf*)
 	;;
 mipsisa32-*-elf* | mipsisa32el-*-elf* | \
 mipsisa32r2-*-elf* | mipsisa32r2el-*-elf* | \
+mipsisa32r6-*-elf* | mipsisa32r6el-*-elf* | \
 mipsisa64-*-elf* | mipsisa64el-*-elf* | \
-mipsisa64r2-*-elf* | mipsisa64r2el-*-elf*)
+mipsisa64r2-*-elf* | mipsisa64r2el-*-elf* | \
+mipsisa64r6-*-elf* | mipsisa64r6el-*-elf*)
 	tmake_file="$tmake_file mips/t-elf mips/t-crtstuff mips/t-mips16"
 	extra_parts="$extra_parts crti.o crtn.o"
 	;;
@@ -1244,7 +1246,7 @@ i[34567]86-*-linux* | x86_64-*-linux* | \
   i[34567]86-*-kfreebsd*-gnu | x86_64-*-kfreebsd*-gnu | \
   i[34567]86-*-knetbsd*-gnu | \
   i[34567]86-*-gnu*)
-	tmake_file="${tmake_file} t-tls i386/t-linux"
+	tmake_file="${tmake_file} t-tls i386/t-linux t-slibgcc-libgcc"
 	if test "$libgcc_cv_cfi" = "yes"; then
 		tmake_file="${tmake_file} t-stack i386/t-stack-i386"
 	fi
@@ -1276,5 +1278,12 @@ i[34567]86-*-linux* | x86_64-*-linux*)
 		tmake_file="${tmake_file} i386/${host_address}/t-softfp-compat"
 	fi
 	tm_file="${tm_file} i386/value-unwind.h"
+	;;
+esac
+
+case ${host} in
+*-grtev3-* | *-grtev4-* )
+	# Don't hide symbols in static libraries.
+	tmake_file="${tmake_file} t-static-no-vis-hide"
 	;;
 esac

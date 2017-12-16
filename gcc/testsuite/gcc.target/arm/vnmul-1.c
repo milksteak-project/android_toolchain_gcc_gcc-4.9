@@ -6,13 +6,13 @@
 double
 foo_d (double a, double b)
 {
-  /* { dg-final { scan-assembler "vnmul\\.f64" } } */
+  /* { dg-final { scan-assembler "fnmuld" } } */
   return -a * b;
 }
 
 float
 foo_s (float a, float b)
 {
-  /* { dg-final { scan-assembler "vnmul\\.f32" } } */
+  /* { dg-final { scan-assembler "fnmuls" } } */
   return -a * b;
 }

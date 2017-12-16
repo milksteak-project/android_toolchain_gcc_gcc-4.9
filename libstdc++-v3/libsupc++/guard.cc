@@ -33,7 +33,12 @@
 #if defined(__GTHREADS) && defined(__GTHREAD_HAS_COND) \
   && (ATOMIC_INT_LOCK_FREE > 1) && defined(_GLIBCXX_HAVE_LINUX_FUTEX)
 # include <climits>
+#if defined(__ANDROID__)
+# include <sys/syscall.h>
+# define SYS_futex __NR_futex
+#else
 # include <syscall.h>
+#endif
 # include <unistd.h>
 # define _GLIBCXX_USE_FUTEX
 # define _GLIBCXX_FUTEX_WAIT 0
@@ -107,22 +112,31 @@ namespace
 # endif
 
 # ifndef _GLIBCXX_GUARD_TEST_AND_ACQUIRE
+
+// Test the guard variable with a memory load with
+// acquire semantics.
+
 inline bool
 __test_and_acquire (__cxxabiv1::__guard *g)
 {
-  bool b = _GLIBCXX_GUARD_TEST (g);
-  _GLIBCXX_READ_MEM_BARRIER;
-  return b;
+  unsigned char __c;
+  unsigned char *__p = reinterpret_cast<unsigned char *>(g);
+  __atomic_load (__p, &__c,  __ATOMIC_ACQUIRE);
+  return _GLIBCXX_GUARD_TEST(&__c);
 }
 #  define _GLIBCXX_GUARD_TEST_AND_ACQUIRE(G) __test_and_acquire (G)
 # endif
 
 # ifndef _GLIBCXX_GUARD_SET_AND_RELEASE
+
+// Set the guard variable to 1 with memory order release semantics.
+
 inline void
 __set_and_release (__cxxabiv1::__guard *g)
 {
-  _GLIBCXX_WRITE_MEM_BARRIER;
-  _GLIBCXX_GUARD_SET (g);
+  unsigned char *__p = reinterpret_cast<unsigned char *>(g);
+  unsigned char val = 1;
+  __atomic_store (__p, &val, __ATOMIC_RELEASE);
 }
 #  define _GLIBCXX_GUARD_SET_AND_RELEASE(G) __set_and_release (G)
 # endif
@@ -134,6 +148,26 @@ __set_and_release (__cxxabiv1::__guard *g)
 # define _GLIBCXX_GUARD_SET_AND_RELEASE(G) _GLIBCXX_GUARD_SET (G)
 
 #endif /* __GTHREADS */
+
+
+extern "C" void __google_potentially_blocking_region_begin(void)
+  __attribute__((weak));
+extern "C" void __google_potentially_blocking_region_end(void)
+  __attribute__((weak));
+
+struct google_potentially_blocking_region
+{
+  google_potentially_blocking_region()
+  {
+    if (&__google_potentially_blocking_region_begin != 0)
+      __google_potentially_blocking_region_begin();
+  }
+  ~google_potentially_blocking_region()
+  {
+    if (&__google_potentially_blocking_region_end != 0)
+      __google_potentially_blocking_region_end();
+  }
+};
 
 //
 // Here are C++ run-time routines for guarded initialization of static
@@ -230,6 +264,8 @@ namespace __cxxabiv1
   extern "C"
   int __cxa_guard_acquire (__guard *g) 
   {
+    google_potentially_blocking_region gpbr;  // RAII
+
 #ifdef __GTHREADS
     // If the target can reorder loads, we need to insert a read memory
     // barrier so that accesses to the guarded variable happen after the

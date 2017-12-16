@@ -85,6 +85,13 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       {
 	if (!_M_is_local())
 	  _M_destroy(_M_allocated_capacity);
+#if __google_stl_debug_dangling_string
+	else {
+          // Wipe local storage for destructed string with 0xCD.
+          // This mimics what DebugAllocation does to free()d memory.
+          __builtin_memset(_M_local_data, 0xcd, sizeof(_M_local_data));
+        }
+#endif
       }
 
       void
@@ -168,15 +175,29 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       _M_leak() { }
 
       void
-      _M_set_length(size_type __n)
+      _M_set_length_no_wipe(size_type __n)
       {
 	_M_length(__n);
 	traits_type::assign(_M_data()[__n], _CharT());
       }
 
+      void
+      _M_set_length(size_type __n)
+      {
+#if __google_stl_debug_dangling_string
+	if (__n + 1 < _M_length())
+	  {
+	    // Wipe the storage with 0xCD.
+	    // Also wipes the old NUL terminator.
+	    __builtin_memset(_M_data() + __n + 1, 0xcd, _M_length() - __n);
+	  }
+#endif
+	  _M_set_length_no_wipe(__n);
+      }
+
       __sso_string_base()
       : _M_dataplus(_M_local_data)
-      { _M_set_length(0); }
+      { _M_set_length_no_wipe(0); }
 
       __sso_string_base(const _Alloc& __a);
 
@@ -193,7 +214,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 			  const _Alloc& __a);
 
       ~__sso_string_base()
-      { _M_dispose(); }
+      {
+          _M_dispose();
+#ifdef __google_stl_debug_dangling_string
+          __builtin_memset(this, 0xcd, sizeof(*this));
+#endif
+      }
 
       _CharT_alloc_type&
       _M_get_allocator()
@@ -326,6 +352,18 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	    __capacity = _M_max_size();
 	}
 
+      // Round up capacity to a multiple of 16 bytes accounting for terminating
+      // element (we only care about __sso_string_base<char>).
+      // _S_local_capacity is 15, so we allocate at least 16 bytes.
+      // And tcmalloc rounds all allocations larger than 16 bytes to a multiple
+      // of 16 bytes.
+      // Note: this rounding won't violate _M_max_size.
+      // _M_max_size = (size_t(-1) - 1) / 2 in the worst case (the largest
+      // value). If we take that value and round it up using the formula below,
+      // we still get the same value (thanks to -1).
+      if (sizeof(_CharT) == 1)
+        __capacity = ((__capacity + 16) & ~15) - 1;
+
       // NB: Need an array of char_type[__capacity], plus a terminating
       // null char_type() element.
       return _M_get_allocator().allocate(__capacity + 1);
@@ -335,7 +373,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     __sso_string_base<_CharT, _Traits, _Alloc>::
     __sso_string_base(const _Alloc& __a)
     : _M_dataplus(__a, _M_local_data)
-    { _M_set_length(0); }
+    { _M_set_length_no_wipe(0); }
 
   template<typename _CharT, typename _Traits, typename _Alloc>
     __sso_string_base<_CharT, _Traits, _Alloc>::
@@ -361,9 +399,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	  _M_capacity(__rcs._M_allocated_capacity);
 	}
 
-      _M_set_length(__rcs._M_length());
+      _M_set_length_no_wipe(__rcs._M_length());
       __rcs._M_data(__rcs._M_local_data);
-      __rcs._M_set_length(0);
+      __rcs._M_set_length_no_wipe(0);
     }
 #endif
 
@@ -425,7 +463,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	    __throw_exception_again;
 	  }
 
-	_M_set_length(__len);
+	_M_set_length_no_wipe(__len);
       }
 
   template<typename _CharT, typename _Traits, typename _Alloc>
@@ -444,8 +482,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
 	if (__dnew > size_type(_S_local_capacity))
 	  {
-	    _M_data(_M_create(__dnew, size_type(0)));
-	    _M_capacity(__dnew);
+	    size_type __cap = __dnew;
+	    _M_data(_M_create(__cap, size_type(0)));
+	    _M_capacity(__cap);
 	  }
 
 	// Check for out_of_range and length_error exceptions.
@@ -457,7 +496,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	    __throw_exception_again;
 	  }
 
-	_M_set_length(__dnew);
+	_M_set_length_no_wipe(__dnew);
       }
 
   template<typename _CharT, typename _Traits, typename _Alloc>
@@ -467,14 +506,15 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     {
       if (__n > size_type(_S_local_capacity))
 	{
-	  _M_data(_M_create(__n, size_type(0)));
-	  _M_capacity(__n);
+	  size_type __cap = __n;
+	  _M_data(_M_create(__cap, size_type(0)));
+	  _M_capacity(__cap);
 	}
 
       if (__n)
 	this->_S_assign(_M_data(), __n, __c);
 
-      _M_set_length(__n);
+      _M_set_length_no_wipe(__n);
     }
 
   template<typename _CharT, typename _Traits, typename _Alloc>
