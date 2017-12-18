@@ -1,5 +1,10 @@
 2017-12-18  Vidir Alexander Jonsson <valex@valex.is>
 
+	* config/aarch64/aarch64.c (tune_params xgene1_tunings): Add missing
+	parameters.
+
+2017-12-18  Vidir Alexander Jonsson <valex@valex.is>
+
 	* config/aarch64/aarch64.c (TARGET_RELAXED_ORDERING): Delete.
 
 2016-08-03  Release Manager
