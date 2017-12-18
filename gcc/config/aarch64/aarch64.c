@@ -6625,15 +6625,6 @@ aarch64_override_options (void)
 #endif
     }
 
-  if (aarch64_fix_a53_err835769 == 2)
-    {
-#ifdef TARGET_FIX_ERR_A53_835769_DEFAULT
-      aarch64_fix_a53_err835769 = 1;
-#else
-      aarch64_fix_a53_err835769 = 0;
-#endif
-    }
-
   aarch64_override_options_after_change ();
 
   if (TARGET_ANDROID)
