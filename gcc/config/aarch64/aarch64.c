@@ -66,6 +66,7 @@
 #include "dumpfile.h"
 #include "tm-constrs.h"
 #include "sched-int.h"
+#include <bits/move.h> // For std::swap
 
 /* Defined for convenience.  */
 #define POINTER_BYTES (POINTER_SIZE / BITS_PER_UNIT)

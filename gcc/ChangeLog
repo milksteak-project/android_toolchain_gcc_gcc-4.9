@@ -1,3 +1,7 @@
+2017-12-19  Vidir Alexander Jonsson <valex@valex.is>
+
+	* config/aarch64/aarch64.c: Include bits/move.h for std::swap.
+
 2017-12-18  Vidir Alexander Jonsson <valex@valex.is>
 
 	* gcc/config/aarch64/aarch64.c (aarch64_override_options): Remove duplicate aarch64_fix_a53_err835769.
