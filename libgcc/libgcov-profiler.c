@@ -151,7 +151,7 @@ __gcov_indirect_call_profiler_atomic (gcov_type* counter, gcov_type value,
                                       void* cur_func, void* callee_func)
 {
   if (cur_func == callee_func
-      || (VTABLE_USES_DESCRIPTORS && callee_func
+      || (__LIBGCC_VTABLE_USES_DESCRIPTORS__ && callee_func
           && *(void **) cur_func == *(void **) callee_func))
     __gcov_one_value_profiler_body_atomic (counter, value);
 }
@@ -202,7 +202,7 @@ __gcov_indirect_call_profiler_atomic_v2 (gcov_type value, void* cur_func)
      function may have multiple descriptors and we need to dereference
      the descriptors to see if they point to the same function.  */
   if (cur_func == __gcov_indirect_call_callee
-      || (VTABLE_USES_DESCRIPTORS && __gcov_indirect_call_callee
+      || (__LIBGCC_VTABLE_USES_DESCRIPTORS__ && __gcov_indirect_call_callee
           && *(void **) cur_func == *(void **) __gcov_indirect_call_callee))
     __gcov_one_value_profiler_body_atomic (__gcov_indirect_call_counters, value);
 }
@@ -350,11 +350,6 @@ __thread
 #endif
 gcov_unsigned_t __gcov_indirect_call_sampling_counter ATTRIBUTE_HIDDEN;
 
-#ifdef TARGET_VTABLE_USES_DESCRIPTORS
-#define VTABLE_USES_DESCRIPTORS 1
-#else
-#define VTABLE_USES_DESCRIPTORS 0
-#endif
 void
 __gcov_indirect_call_topn_profiler (void *cur_func,
                                     void *cur_module_gcov_info,
@@ -366,7 +361,7 @@ __gcov_indirect_call_topn_profiler (void *cur_func,
      function may have multiple descriptors and we need to dereference
      the descriptors to see if they point to the same function.  */
   if (cur_func == callee_func
-      || (VTABLE_USES_DESCRIPTORS && callee_func
+      || (__LIBGCC_VTABLE_USES_DESCRIPTORS__ && callee_func
          && *(void **) cur_func == *(void **) callee_func))
     {
       if (++__gcov_indirect_call_sampling_counter >= __gcov_lipo_sampling_period)
