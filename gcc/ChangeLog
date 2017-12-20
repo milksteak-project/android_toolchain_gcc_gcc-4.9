@@ -1,3 +1,10 @@
+2017-12-20  Vidir Alexander Jonsson <valex@valex.is>
+
+	* config/aarch64/aarch64.c (rtx insn): Replace remaining
+	instances of 'rtx insn' with 'rtx_insn *' to keep up with
+	mainline cherry-picks and prevent build breakage.
+	* config/aarch64/aarch64-protos.h: (rtx insn): Likewise.
+
 2017-12-19  Vidir Alexander Jonsson <valex@valex.is>
 
 	Backport from mainline

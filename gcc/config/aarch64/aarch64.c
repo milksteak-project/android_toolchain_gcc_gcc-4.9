@@ -2184,7 +2184,6 @@ aarch64_pushwb_pair_reg (enum machine_mode mode, unsigned regno1,
   insn = emit_insn (aarch64_gen_storewb_pair (mode, stack_pointer_rtx, reg1,
 					      reg2, adjustment));
   RTX_FRAME_RELATED_P (XVECEXP (PATTERN (insn), 0, 2)) = 1;
-
   RTX_FRAME_RELATED_P (XVECEXP (PATTERN (insn), 0, 1)) = 1;
   RTX_FRAME_RELATED_P (insn) = 1;
 }
@@ -8058,11 +8057,11 @@ has_memory_op (rtx_insn *mem_insn)
   return false;
 }
 
-/* Find the first rtx before insn that will generate an assembly
+/* Find the first rtx_insn before insn that will generate an assembly
    instruction.  */
 
-static rtx
-aarch64_prev_real_insn (rtx insn)
+static rtx_insn *
+aarch64_prev_real_insn (rtx_insn *insn)
 {
   if (!insn)
     return NULL;
@@ -8129,10 +8128,10 @@ dep_between_memop_and_curr (rtx memop)
    should be inserted between them.  */
 
 bool
-aarch64_madd_needs_nop (rtx insn)
+aarch64_madd_needs_nop (rtx_insn* insn)
 {
   enum attr_type attr_type;
-  rtx prev;
+  rtx_insn *prev;
   rtx body;
 
   if (!aarch64_fix_a53_err835769)
@@ -8171,7 +8170,7 @@ aarch64_madd_needs_nop (rtx insn)
 /* Implement FINAL_PRESCAN_INSN.  */
 
 void
-aarch64_final_prescan_insn (rtx insn)
+aarch64_final_prescan_insn (rtx_insn *insn)
 {
   if (aarch64_madd_needs_nop (insn))
     fprintf (asm_out_file, "\tnop // between mem op and mult-accumulate\n");
@@ -8623,7 +8622,7 @@ aarch64_simd_emit_reg_reg_move (rtx *operands, enum machine_mode mode,
 /* Compute and return the length of aarch64_simd_mov<mode>, where <mode> is
    one of VSTRUCT modes: OI, CI or XI.  */
 int
-aarch64_simd_attr_length_move (rtx insn)
+aarch64_simd_attr_length_move (rtx_insn *insn)
 {
   enum machine_mode mode;
 
@@ -10378,7 +10377,7 @@ aarch64_macro_fusion_p (void)
    should be kept together during scheduling.  */
 
 static bool
-aarch_macro_fusion_pair_p (rtx prev, rtx curr)
+aarch_macro_fusion_pair_p (rtx_insn *prev, rtx_insn *curr)
 {
   rtx set_dest;
   rtx prev_set = single_set (prev);
